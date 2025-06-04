@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes";
+import regularPromptRoutes from "./routes/regularPromptRoutes";
 import authRoutes from "./routes/authRoutes";
 
 // Load environment variables
@@ -24,6 +25,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Use routes
 app.use("/api/v2/auth", authRoutes);
+app.use("/api/v2/r-prompts", regularPromptRoutes);
 app.use("/api/users", userRoutes);
 
 // Connect to MongoDB
