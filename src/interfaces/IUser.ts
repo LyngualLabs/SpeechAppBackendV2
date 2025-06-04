@@ -1,17 +1,35 @@
 // interfaces/IUser.ts
 import { Document } from 'mongoose';
 
-// Define base user interface
-export interface IUser {
+// Define role types
+export type UserRole = 'admin' | 'teacher' | 'staff' | 'student' | 'parent';
+
+// Define personal information interface
+export interface IPersonalInfo {
+  phoneNumber: string;
+  gender: string;
+  nationality: string;
+  state: string;
+  age: number;
+  occupation: string;
+}
+
+// Define bank details interface
+export interface IBankDetails {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+// Define main user interface
+export interface IUser extends Document {
+  fullname: string;
   email: string;
   password: string;
   role: UserRole;
-  fullname: string;
-  phone: string;
-  avatar?: string;
+  personalInfo: IPersonalInfo;
+  bankDetails: IBankDetails;
+  languages: string[];
   createdAt: Date;
   updatedAt: Date;
 }
-
-// Define role types
-export type UserRole = 'admin' | 'teacher' | 'staff' | 'student' | 'parent';

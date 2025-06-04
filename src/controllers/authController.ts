@@ -3,7 +3,7 @@ import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { User } from "../models/User";
-// import { IUser } from "../interfaces/IUser";
+import { IUser } from "../interfaces/IUser";
 
 const generateToken = (id: string) => {
   if (!process.env.JWT_SECRET) {
@@ -65,7 +65,7 @@ export const signIn = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {
     const { email, password } = req.body;
     try {
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email }) as (IUser & { _id: any }) | null;
 
       if (!user) {
         return res
