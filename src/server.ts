@@ -43,7 +43,7 @@ mongoose
 
 // Basic route
 app.get("/", (req: Request, res: Response) => {
-  res.send("MERN TypeScript API is running");
+  res.send("SpeechApp By LyngualLabs...");
 });
 
 // Start server
