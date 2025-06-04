@@ -3,6 +3,7 @@ import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
 import { User } from "../models/User";
 import { RegularPrompt, IRegularPrompt } from "../models/RegularPrompts";
+import { RegularRecording } from "../models/RegularRecordings";
 
 // Interface for uploaded prompt data
 interface IUploadedPrompt {
@@ -85,63 +86,64 @@ export const addBulkPrompts = asyncHandler(
   }
 );
 
-// export const getPrompts = asyncHandler(
-//   async (req: AuthRequest, res: Response): Promise<void> => {
-//     try {
-//       // Find the current user
-//       const user = await User.findById(req.user?._id);
-//       if (!user) {
-//         res.status(404).json({ error: "User not found" });
-//         return;
-//       }
+export const getPrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      // Find the current user
+      const user = await User.findById(req.user?._id);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
 
-//       // Get the IDs of prompts this user has already recorded
-//       const usedPromptIds = (user.prompts || [])
-//         .filter((p) => p.prompt_id && p.prompt_id !== "undefined")
-//         .map((p) => p.prompt_id);
+      // Get user's existing recordings to exclude prompts they've already recorded
+      const existingRecordings = await RegularRecording.find({ user: user._id })
+        .select("prompt")
+        .lean();
 
-//       // Create the base query for active prompts with remaining capacity
-//       let query: mongoose.FilterQuery<typeof RegularPrompt> = {
-//         active: true,
-//         $expr: { $lt: ["$userCount", "$maxUsers"] },
-//       };
+      const recordedPromptIds = existingRecordings.map((rec) => rec.prompt);
 
-//       // Only add the $nin filter if we have valid prompt IDs to exclude
-//       if (usedPromptIds.length > 0) {
-//         // Convert valid string IDs to ObjectIds for the query
-//         const validObjectIds = usedPromptIds
-//           .filter((id) => mongoose.Types.ObjectId.isValid(id))
-//           .map((id) => new mongoose.Types.ObjectId(id));
+      // Create the base query for active prompts with remaining capacity
+      const query: mongoose.FilterQuery<typeof RegularPrompt> = {
+        active: true,
+        $expr: { $lt: ["$userCount", "$maxUsers"] },
+        _id: { $nin: recordedPromptIds },
+      };
 
-//         // Only add the $nin clause if we have valid ObjectIds
-//         if (validObjectIds.length > 0) {
-//           query._id = { $nin: validObjectIds };
-//         }
-//       }
+      // Find prompts that match our criteria
+      const availablePrompts = await RegularPrompt.find(query)
+        .select("text_id prompt emotions domain language_tags")
+        .lean();
 
-//       // Find prompts that match our criteria
-//       const availablePrompts = await RegularPrompt.find(query);
+      if (!availablePrompts.length) {
+        res.status(404).json({
+          success: false,
+          message: "No available prompts found",
+        });
+        return;
+      }
 
-//       if (!availablePrompts.length) {
-//         res.status(404).json({ error: "No available prompts" });
-//         return;
-//       }
+      // Select a random prompt from the available ones
+      const randomPrompt =
+        availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
 
-//       // Select a random prompt from the available ones
-//       const randomPrompt =
-//         availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
-
-//       res.json({
-//         id: randomPrompt._id,
-//         prompt: randomPrompt.prompt,
-//         emotion: randomPrompt.emotions,
-//         domain: randomPrompt.domain,
-//       });
-//     } catch (error) {
-//       console.error("Error:", error);
-//       const errorMessage =
-//         error instanceof Error ? error.message : "Server error";
-//       res.status(500).json({ error: errorMessage });
-//     }
-//   }
-// );
+      res.status(200).json({
+        success: true,
+        data: {
+          id: randomPrompt._id,
+          text_id: randomPrompt.text_id,
+          prompt: randomPrompt.prompt,
+          emotions: randomPrompt.emotions,
+          domain: randomPrompt.domain,
+          language_tags: randomPrompt.language_tags,
+        },
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
