@@ -17,6 +17,12 @@ const generateToken = (id: string) => {
 let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
 let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
 
+interface IAuthRequest extends Request {
+  user?: {
+    _id: string;
+  };
+}
+
 export const signUp = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {
     const { fullname, email, password } = req.body;
@@ -65,7 +71,9 @@ export const signIn = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {
     const { email, password } = req.body;
     try {
-      const user = await User.findOne({ email }) as (IUser & { _id: any }) | null;
+      const user = (await User.findOne({ email })) as
+        | (IUser & { _id: any })
+        | null;
 
       if (!user) {
         return res
@@ -156,3 +164,47 @@ export const getAuthStatus = asyncHandler(
 );
 
 
+
+export const getUser = asyncHandler(
+  async (req: IAuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user?._id) {
+        res.status(401).json({
+          success: false,
+          message: "Not authorized",
+        });
+        return;
+      }
+
+      const user = await User.findById(req.user._id).select("-password");
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+        return;
+      }
+
+      const responseData = {
+        success: true,
+        id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role || "user",
+        personalInfo: user.personalInfo || null,
+        languages: user.languages || [],
+        token: req.cookies.token || null,
+      };
+
+      res.status(200).json(responseData);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      res.status(500).json({
+        success: false,
+        message: errorMessage,
+      });
+    }
+  }
+);
