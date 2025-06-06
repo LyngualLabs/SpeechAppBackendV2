@@ -91,11 +91,18 @@ export const signIn = asyncHandler(
 
       // Dynamic cookie settings based on environment
       const isProduction = process.env.NODE_ENV === "production";
+
+      // Log environment details
+      console.log("Environment:", process.env.NODE_ENV);
+      console.log("Request protocol:", req.protocol);
+      console.log("Request secure:", req.secure);
+      console.log("X-Forwarded-Proto:", req.headers["x-forwarded-proto"]);
+
       const cookieOptions = {
         path: "/",
         httpOnly: true,
         expires: new Date(Date.now() + 1000 * 86400), // 1 day
-        sameSite: isProduction ? "none" as "none" : "lax" as "lax", // Use 'lax' for development
+        sameSite: isProduction ? ("none" as "none") : ("lax" as "lax"), // Use 'lax' for development
         secure: isProduction, // Only secure in production (HTTPS)
       };
 
