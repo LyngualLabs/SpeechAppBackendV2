@@ -41,6 +41,8 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+app.set('trust proxy', true);
+
 // Use routes
 app.use("/api/v2/auth", authRoutes);
 app.use("/api/v2/r-prompts", regularPromptRoutes);

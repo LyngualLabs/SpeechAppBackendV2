@@ -92,6 +92,10 @@ export const signIn = asyncHandler(
       // Dynamic cookie settings based on environment
       const isProduction = process.env.NODE_ENV === "production";
 
+      // Properly detect HTTPS behind proxy
+      const isSecure =
+        req.secure || req.headers["x-forwarded-proto"] === "https";
+
       // Log environment details
       console.log("Environment:", process.env.NODE_ENV);
       console.log("Request protocol:", req.protocol);
