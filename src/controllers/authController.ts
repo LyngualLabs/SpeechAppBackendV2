@@ -89,14 +89,17 @@ export const signIn = asyncHandler(
       // Generate Token
       const token = generateToken(user._id.toString());
 
-      // Send HTTP-only cookie
-      res.cookie("token", token, {
+      // Dynamic cookie settings based on environment
+      const isProduction = process.env.NODE_ENV === "production";
+      const cookieOptions = {
         path: "/",
         httpOnly: true,
         expires: new Date(Date.now() + 1000 * 86400), // 1 day
-        sameSite: "none",
-        secure: true,
-      });
+        sameSite: isProduction ? "none" as "none" : "lax" as "lax", // Use 'lax' for development
+        secure: isProduction, // Only secure in production (HTTPS)
+      };
+
+      res.cookie("token", token, cookieOptions);
 
       const responseData = {
         success: true,
@@ -162,8 +165,6 @@ export const getAuthStatus = asyncHandler(
     }
   }
 );
-
-
 
 export const getUser = asyncHandler(
   async (req: IAuthRequest, res: Response): Promise<void> => {
