@@ -106,7 +106,8 @@ export const signIn = asyncHandler(
         path: "/",
         httpOnly: true,
         expires: new Date(Date.now() + 1000 * 86400), // 1 day
-        sameSite: (isProduction && isSecure) ? "none" as "none" : "lax" as "lax",
+        sameSite:
+          isProduction && isSecure ? ("none" as "none") : ("lax" as "lax"),
         secure: isProduction && isSecure, // Only secure in production (HTTPS)
       };
 
@@ -200,6 +201,13 @@ export const getUser = asyncHandler(
         return;
       }
 
+      let token;
+      const authHeader = req.headers.authorization;
+
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+
       const responseData = {
         success: true,
         id: user._id,
@@ -208,7 +216,7 @@ export const getUser = asyncHandler(
         role: user.role || "user",
         personalInfo: user.personalInfo || null,
         languages: user.languages || [],
-        token: req.cookies.token || null,
+        token: req.cookies.token || token || null,
       };
 
       res.status(200).json(responseData);
