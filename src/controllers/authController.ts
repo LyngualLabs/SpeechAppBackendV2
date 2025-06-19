@@ -106,9 +106,11 @@ export const signIn = asyncHandler(
         path: "/",
         httpOnly: true,
         expires: new Date(Date.now() + 1000 * 86400), // 1 day
-        sameSite: isProduction ? ("none" as "none") : ("lax" as "lax")
-        secure: isProduction, // Only secure in production (HTTPS)
+        sameSite: (isProduction && isSecure) ? "none" as "none" : "lax" as "lax",
+        secure: isProduction && isSecure, // Only secure in production (HTTPS)
       };
+
+      console.log("Cookie options:", cookieOptions);
 
       res.cookie("token", token, cookieOptions);
 
