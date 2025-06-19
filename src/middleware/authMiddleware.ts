@@ -11,20 +11,12 @@ export const protect = asyncHandler(
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
-        console.log("Token found in Authorization header");
       }
 
       // If no token in header, try to get from cookies
       if (!token && req.cookies && req.cookies.token) {
         token = req.cookies.token;
-        console.log("Token found in cookies");
       }
-
-      console.log("Authorization header:", authHeader);
-      console.log(
-        "Extracted token:",
-        token ? `${token.substring(0, 20)}...` : "None"
-      );
 
       if (!token) {
         res.status(401).json({

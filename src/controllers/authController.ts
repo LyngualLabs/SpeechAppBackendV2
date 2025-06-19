@@ -111,8 +111,6 @@ export const signIn = asyncHandler(
         secure: isProduction && isSecure, // Only secure in production (HTTPS)
       };
 
-      console.log("Cookie options:", cookieOptions);
-
       res.cookie("token", token, cookieOptions);
 
       const responseData = {
