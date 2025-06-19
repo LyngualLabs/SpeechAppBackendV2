@@ -7,8 +7,21 @@ import { IAuthRequest } from "../interfaces/IAuthRequest";
 export const protect = asyncHandler(
   async (req: IAuthRequest, res: Response, next: NextFunction) => {
     try {
-      const token = req.cookies.token;
-      console.log("authToken", token);
+      // const token = req.cookies.token;
+      // console.log("authToken", token);
+
+      let token;
+      const authHeader = req.headers.authorization;
+
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+
+      console.log("Authorization header:", authHeader);
+      console.log(
+        "Extracted token:",
+        token ? `${token.substring(0, 20)}...` : "None"
+      );
 
       if (!token) {
         res.status(401).json({
@@ -38,6 +51,7 @@ export const protect = asyncHandler(
       req.user = user;
       next();
     } catch (error) {
+      console.log("Token verification error:", error);
       res.status(401).json({
         success: false,
         message: "Not authorized, invalid token",
