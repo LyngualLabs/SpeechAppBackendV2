@@ -7,14 +7,17 @@ import { IAuthRequest } from "../interfaces/IAuthRequest";
 export const protect = asyncHandler(
   async (req: IAuthRequest, res: Response, next: NextFunction) => {
     try {
-      // const token = req.cookies.token;
-      // console.log("authToken", token);
-
       let token;
       const authHeader = req.headers.authorization;
-
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
+        console.log("Token found in Authorization header");
+      }
+
+      // If no token in header, try to get from cookies
+      if (!token && req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+        console.log("Token found in cookies");
       }
 
       console.log("Authorization header:", authHeader);
