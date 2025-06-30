@@ -424,85 +424,66 @@ export const getPromptById = asyncHandler(
   }
 );
 
-// export const verifyPrompts = asyncHandler(
-//   async (req: AuthRequest, res: Response): Promise<void> => {
-//     const { userId } = req.params;
-//     let { recordingIds } = req.body;
+export const verifyPrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    let { recordingIds } = req.body;
 
-//     if (typeof recordingIds === "string") {
-//       recordingIds = [recordingIds];
-//     }
+    if (typeof recordingIds === "string") {
+      recordingIds = [recordingIds];
+    }
 
-//     if (!Array.isArray(recordingIds) || recordingIds.length === 0) {
-//       res.status(400).json({
-//         error: "Please provide recording ID(s) as an array or single string.",
-//       });
-//       return;
-//     }
+    if (!Array.isArray(recordingIds) || recordingIds.length === 0) {
+      res.status(400).json({
+        error: "Please provide recording ID(s) as an array or single string.",
+      });
+      return;
+    }
 
-//     try {
-//       // Find the user
-//       const user = await User.findById(userId);
-//       if (!user) {
-//         res.status(404).json({ error: "User not found." });
-//         return;
-//       }
+    try {
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found." });
+        return;
+      }
 
-//       // Find recordings that belong to this user and are not yet verified
-//       const recordings = await RegularRecording.find({
-//         _id: { $in: recordingIds },
-//         user: userId,
-//         isVerified: { $ne: true }
-//       }).populate('prompt', 'text_id prompt');
+      // Find recordings that belong to this user and are not yet verified
+      const recordings = await RegularRecording.find({
+        _id: { $in: recordingIds },
+        user: userId,
+        isVerified: { $ne: true }
+      }).populate('prompt', 'text_id prompt');
 
-//       if (recordings.length === 0) {
-//         res.status(400).json({
-//           error: "No recordings found or all recordings are already verified.",
-//         });
-//         return;
-//       }
+      if (recordings.length === 0) {
+        res.status(400).json({
+          error: "No recordings found or all recordings are already verified.",
+        });
+        return;
+      }
 
-//       // Mark recordings as verified
-//       const updateResult = await RegularRecording.updateMany(
-//         {
-//           _id: { $in: recordings.map(r => r._id) },
-//           user: userId,
-//           isVerified: { $ne: true }
-//         },
-//         { isVerified: true }
-//       );
+      // Mark recordings as verified
+      const updateResult = await RegularRecording.updateMany(
+        {
+          _id: { $in: recordings.map(r => r._id) },
+          user: userId,
+          isVerified: { $ne: true }
+        },
+        { isVerified: true }
+      );
 
-//       const verifiedCount = updateResult.modifiedCount;
-//       const verifiedRecordings = recordings.map(r =>
-//         (r.prompt as any)?.text_id || (r.prompt as any)?.prompt || r._id.toString()
-//       );
+      const verifiedCount = updateResult.modifiedCount;
 
-//       // Increment the verified recordings count
-//       user.promptsVerified = (user.promptsVerified || 0) + verifiedCount;
+      // Save the updated user document
+      await user.save();
 
-//       // Add a notification
-//       const message =
-//         verifiedCount === 1
-//           ? `Recording "${verifiedRecordings[0]}" has been verified successfully.`
-//           : `${verifiedCount} recordings have been verified successfully.`;
-
-//       user.notifications?.push({
-//         message,
-//         reason: "Verified by admin",
-//       });
-
-//       // Save the updated user document
-//       await user.save();
-
-//       res.status(200).json({
-//         success: true,
-//         message,
-//         verifiedCount,
-//         verifiedRecordings,
-//       });
-//     } catch (error) {
-//       console.error("Error verifying recordings:", error);
-//       res.status(500).json({ error: "Internal server error" });
-//     }
-//   }
-// );
+      res.status(200).json({
+        success: true,
+        verifiedCount,
+      });
+    } catch (error) {
+      console.error("Error verifying recordings:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);

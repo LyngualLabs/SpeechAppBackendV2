@@ -6,6 +6,7 @@ import {
   uploadPrompt,
   getUserPrompts,
   getPromptById,
+  verifyPrompts,
 } from "../controllers/regularPromptController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -28,6 +29,9 @@ router.get("/get-prompt", getPrompts);
 // @param id: [TEXT] - The MongoDB ObjectId of the prompt (e.g., "674a1b2c3d4e5f6789012345") or custom prompt_id (e.g., "1-300")
 router.get("/get-prompt/:id", getPromptById);
 
+// @desc Get user prompts
+// @route GET /api/r-prompts/my-recordings
+// @access Private
 router.get("/my-recordings", getUserPrompts);
 
 // @desc Upload prompt recording
@@ -36,5 +40,10 @@ router.get("/my-recordings", getUserPrompts);
 // @body audioFile: [FILE] - Select your audio file (mp3, wav, etc.)
 // @body prompt_id: [TEXT] - The MongoDB ObjectId of the prompt (e.g., "674a1b2c3d4e5f6789012345")
 router.post("/upload", upload.single("audioFile"), uploadPrompt);
+
+// @desc Verify user recordings
+// @route PUT /api/r-prompts/verify/:userId
+// @access Private (Admin only)
+router.put("/verify/:userId", verifyPrompts);
 
 export default router;
