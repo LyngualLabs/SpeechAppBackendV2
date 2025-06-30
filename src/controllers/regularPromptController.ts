@@ -13,7 +13,6 @@ admin.initializeApp({
   storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
 });
 
-
 // Interface for uploaded prompt data
 interface IUploadedPrompt {
   text_id: string;
@@ -310,8 +309,8 @@ export const getUserPrompts = asyncHandler(
       // Get user's recordings with prompt details
       const userRecordings = await RegularRecording.find({ user: user._id })
         .populate({
-          path: 'prompt',
-          select: 'text_id prompt emotions domain language_tags'
+          path: "prompt",
+          select: "text_id prompt emotions domain language_tags",
         })
         .sort({ createdAt: -1 }) // Most recent first
         .lean();
@@ -322,8 +321,8 @@ export const getUserPrompts = asyncHandler(
           message: "No recordings found for this user",
           data: {
             recordings: [],
-            totalCount: 0
-          }
+            totalCount: 0,
+          },
         });
         return;
       }
@@ -341,7 +340,7 @@ export const getUserPrompts = asyncHandler(
           prompt: (recording.prompt as any)?.prompt,
           emotions: (recording.prompt as any)?.emotions,
           domain: (recording.prompt as any)?.domain,
-        }
+        },
       }));
 
       res.status(200).json({
@@ -349,9 +348,10 @@ export const getUserPrompts = asyncHandler(
         data: {
           recordings: formattedRecordings,
           totalCount: formattedRecordings.length,
-          verifiedCount: formattedRecordings.filter(r => r.isVerified).length,
-          unverifiedCount: formattedRecordings.filter(r => !r.isVerified).length
-        }
+          verifiedCount: formattedRecordings.filter((r) => r.isVerified).length,
+          unverifiedCount: formattedRecordings.filter((r) => !r.isVerified)
+            .length,
+        },
       });
     } catch (error) {
       console.error("Error fetching user prompts:", error);
@@ -389,9 +389,9 @@ export const getPromptById = asyncHandler(
 
       // If still not found, return error
       if (!prompt) {
-        res.status(404).json({ 
+        res.status(404).json({
           success: false,
-          error: "Prompt not found" 
+          error: "Prompt not found",
         });
         return;
       }
@@ -411,8 +411,8 @@ export const getPromptById = asyncHandler(
           userCount: prompt.userCount,
           active: prompt.active,
           createdAt: prompt.createdAt,
-          updatedAt: prompt.updatedAt
-        }
+          updatedAt: prompt.updatedAt,
+        },
       });
     } catch (error) {
       console.error("Error fetching prompt:", error);
@@ -452,8 +452,8 @@ export const verifyPrompts = asyncHandler(
       const recordings = await RegularRecording.find({
         _id: { $in: recordingIds },
         user: userId,
-        isVerified: { $ne: true }
-      }).populate('prompt', 'text_id prompt');
+        isVerified: { $ne: true },
+      }).populate("prompt", "text_id prompt");
 
       if (recordings.length === 0) {
         res.status(400).json({
@@ -465,9 +465,9 @@ export const verifyPrompts = asyncHandler(
       // Mark recordings as verified
       const updateResult = await RegularRecording.updateMany(
         {
-          _id: { $in: recordings.map(r => r._id) },
+          _id: { $in: recordings.map((r) => r._id) },
           user: userId,
-          isVerified: { $ne: true }
+          isVerified: { $ne: true },
         },
         { isVerified: true }
       );
@@ -483,6 +483,122 @@ export const verifyPrompts = asyncHandler(
       });
     } catch (error) {
       console.error("Error verifying recordings:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+export const deletePrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    let { recordingIds } = req.body;
+
+    // Convert single string to array for uniform processing
+    if (typeof recordingIds === "string") {
+      recordingIds = [recordingIds];
+    }
+
+    if (!Array.isArray(recordingIds) || recordingIds.length === 0) {
+      res.status(400).json({
+        error: "Please provide recording ID(s) as an array or single string.",
+      });
+      return;
+    }
+
+    try {
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found." });
+        return;
+      }
+
+      // Find recordings that belong to this user
+      const recordings = await RegularRecording.find({
+        _id: { $in: recordingIds },
+        user: userId,
+      }).populate("prompt", "text_id prompt _id");
+
+      if (recordings.length === 0) {
+        res.status(404).json({
+          error: "No recordings found for the provided IDs.",
+        });
+        return;
+      }
+
+      // Get prompt IDs to update their userCount
+      const promptIds = recordings
+        .map((r) => (r.prompt as any)?._id)
+        .filter(Boolean);
+      const recordingIdsToDelete = recordings.map((r) => r._id);
+
+      // Delete the recordings
+      const deleteResult = await RegularRecording.deleteMany({
+        _id: { $in: recordingIdsToDelete },
+        user: userId,
+      });
+
+      const deletedCount = deleteResult.deletedCount;
+
+      // Update prompt userCounts (decrease by number of deleted recordings)
+      if (promptIds.length > 0) {
+        // For each unique prompt, decrease userCount
+        const promptCountMap = new Map();
+        promptIds.forEach((promptId) => {
+          const key = promptId.toString();
+          promptCountMap.set(key, (promptCountMap.get(key) || 0) + 1);
+        });
+
+        // Update each prompt's userCount
+        for (const [promptId, count] of promptCountMap) {
+          await RegularPrompt.findByIdAndUpdate(promptId, {
+            $inc: { userCount: -count },
+            $set: { active: true }, // Reactivate prompt if it was deactivated
+          });
+        }
+      }
+
+      for (const recording of recordings) {
+        try {
+          const fileName = recording.audioUrl.split("/").pop();
+          if (fileName) {
+            const storageRef = admin
+              .storage()
+              .bucket()
+              .file(`Regular_Prompts_V2/${fileName}`);
+            await storageRef.delete();
+          }
+        } catch (fileError) {
+          console.warn(
+            `Failed to delete audio file: ${recording.audioUrl}`,
+            fileError
+          );
+        }
+      }
+
+      // Get deleted recording details for response
+      const deletedRecordings = recordings.map((r) => ({
+        id: r._id,
+        promptText:
+          (r.prompt as any)?.text_id || (r.prompt as any)?.prompt || "Unknown",
+      }));
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        data: {
+          deletedCount,
+          deletedRecordings: deletedRecordings.map((r) => ({
+            recordingId: r.id,
+            promptText: r.promptText,
+          })),
+          totalRequested: recordingIds.length,
+          notFound: recordingIds.length - recordings.length,
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting recordings:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   }

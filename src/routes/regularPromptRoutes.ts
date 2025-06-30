@@ -7,6 +7,7 @@ import {
   getUserPrompts,
   getPromptById,
   verifyPrompts,
+  deletePrompts,
 } from "../controllers/regularPromptController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -45,5 +46,10 @@ router.post("/upload", upload.single("audioFile"), uploadPrompt);
 // @route PUT /api/r-prompts/verify/:userId
 // @access Private (Admin only)
 router.put("/verify/:userId", verifyPrompts);
+
+// @desc Delete user recordings
+// @route DELETE /api/r-prompts/delete/:userId
+// @access Private (Admin only)
+router.delete("/delete/:userId", deletePrompts);
 
 export default router;
