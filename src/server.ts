@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes";
 import regularPromptRoutes from "./routes/regularPromptRoutes";
 import authRoutes from "./routes/authRoutes";
+import "./utils/firebase";
 
 // Load environment variables
 dotenv.config();

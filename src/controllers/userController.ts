@@ -3,19 +3,6 @@ import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { IUser } from '../interfaces/IUser';
 
-interface IAuthRequest extends Request {
-    body: {
-      email: string;
-      password: string;
-    };
-  }
-  
-  interface IRegisterRequest extends Request {
-    body: IUser & {
-      password: string;
-    };
-  }
-
 // Get all users
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
