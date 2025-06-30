@@ -1,11 +1,9 @@
-// File: src/utils/firebase.ts
-import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 // Firebase Admin SDK configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
   private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
@@ -18,15 +16,3 @@ const firebaseConfig = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
   universe_domain: 'googleapis.com'
 };
-
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(firebaseConfig as admin.ServiceAccount),
-    storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`
-  });
-}
-
-export const bucket = admin.storage().bucket();
-export const auth = admin.auth();
-export default admin;

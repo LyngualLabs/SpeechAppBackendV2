@@ -4,10 +4,10 @@ import mongoose from "mongoose";
 import { User } from "../models/User";
 import { RegularPrompt, IRegularPrompt } from "../models/RegularPrompts";
 import { RegularRecording } from "../models/RegularRecordings";
-// import { bucket } from "../utils/firebase";
 const admin = require("firebase-admin");
+import { firebaseConfig } from "../config/firebase";
 
-const serviceAccount = require("../firebase.json");
+const serviceAccount = firebaseConfig;
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
