@@ -10,6 +10,7 @@ interface ILanguageTag {
 export interface IRegularPrompt extends Document {
   text_id: string;
   prompt: string;
+  prompt_id: string;
   emotions?: string | null;
   language_tags: ILanguageTag[];
   domain?: string | null;
@@ -30,6 +31,12 @@ const RegularPromptSchema = new Schema<IRegularPrompt>(
     prompt: {
       type: String,
       required: true,
+      trim: true,
+    },
+    prompt_id: { 
+      type: String,
+      required: true,
+      unique: true, 
       trim: true,
     },
     emotions: {

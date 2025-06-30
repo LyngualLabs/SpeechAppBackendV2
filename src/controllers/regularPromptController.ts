@@ -12,7 +12,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
 });
-``;
+
 
 // Interface for uploaded prompt data
 interface IUploadedPrompt {
@@ -65,9 +65,10 @@ export const addBulkPrompts = asyncHandler(
         .filter((prompt): prompt is IUploadedPrompt =>
           Boolean(prompt.text_id && prompt.prompt)
         )
-        .map((prompt) => ({
+        .map((prompt, index) => ({
           text_id: prompt.text_id,
           prompt: prompt.prompt,
+          prompt_id: `${index + 1}-${prompts.length}`,
           emotions: prompt.emotions || "Neutral",
           language_tags: prompt.language_tags || [],
           domain: prompt.domain || "General",
@@ -296,7 +297,132 @@ export const uploadPrompt = asyncHandler(
   }
 );
 
+export const getUserPrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      // Find the current user
+      const user = await User.findById(req.user?._id);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
 
+      // Get user's recordings with prompt details
+      const userRecordings = await RegularRecording.find({ user: user._id })
+        .populate({
+          path: 'prompt',
+          select: 'text_id prompt emotions domain language_tags'
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: "No recordings found for this user",
+          data: {
+            recordings: [],
+            totalCount: 0
+          }
+        });
+        return;
+      }
+
+      // Format the response
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        createdAt: recording.createdAt,
+        updatedAt: recording.updatedAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          text_id: (recording.prompt as any)?.text_id,
+          prompt: (recording.prompt as any)?.prompt,
+          emotions: (recording.prompt as any)?.emotions,
+          domain: (recording.prompt as any)?.domain,
+        }
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          recordings: formattedRecordings,
+          totalCount: formattedRecordings.length,
+          verifiedCount: formattedRecordings.filter(r => r.isVerified).length,
+          unverifiedCount: formattedRecordings.filter(r => !r.isVerified).length
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
+export const getPromptById = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+
+    try {
+      // Validate if ID is provided
+      if (!id) {
+        res.status(400).json({ error: "Prompt ID is required" });
+        return;
+      }
+
+      let prompt;
+
+      // Check if it's a valid MongoDB ObjectId format
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        // Search by MongoDB _id
+        prompt = await RegularPrompt.findById(id).lean();
+      }
+
+      // If not found by _id or not a valid ObjectId, try searching by prompt_id
+      if (!prompt) {
+        prompt = await RegularPrompt.findOne({ prompt_id: id }).lean();
+      }
+
+      // If still not found, return error
+      if (!prompt) {
+        res.status(404).json({ 
+          success: false,
+          error: "Prompt not found" 
+        });
+        return;
+      }
+
+      // Format response
+      res.status(200).json({
+        success: true,
+        data: {
+          id: prompt._id,
+          text_id: prompt.text_id,
+          prompt: prompt.prompt,
+          prompt_id: prompt.prompt_id,
+          emotions: prompt.emotions,
+          domain: prompt.domain,
+          language_tags: prompt.language_tags,
+          maxUsers: prompt.maxUsers,
+          userCount: prompt.userCount,
+          active: prompt.active,
+          createdAt: prompt.createdAt,
+          updatedAt: prompt.updatedAt
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching prompt:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
 
 // export const verifyPrompts = asyncHandler(
 //   async (req: AuthRequest, res: Response): Promise<void> => {
