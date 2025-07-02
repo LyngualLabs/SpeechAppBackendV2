@@ -363,6 +363,86 @@ export const getUserPrompts = asyncHandler(
   }
 );
 
+export const getPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get user's recordings with prompt details
+      const userRecordings = await RegularRecording.find({ user: userId })
+        .populate({
+          path: "prompt",
+          select: "text_id prompt emotions domain language_tags",
+        })
+        // .sort({ createdAt: -1 })
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          text_id: (recording.prompt as any)?.text_id,
+          prompt: (recording.prompt as any)?.prompt,
+          emotions: (recording.prompt as any)?.emotions,
+          domain: (recording.prompt as any)?.domain,
+        },
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount: formattedRecordings.length,
+          verifiedCount: formattedRecordings.filter((r) => r.isVerified).length,
+          unverifiedCount: formattedRecordings.filter((r) => !r.isVerified)
+            .length,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
 export const getPromptById = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;

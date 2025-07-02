@@ -5,6 +5,7 @@ import {
   getPrompts,
   uploadPrompt,
   getUserPrompts,
+  getPromptsByUser,
   getPromptById,
   verifyPrompts,
   deletePrompts,
@@ -34,6 +35,12 @@ router.get("/get-prompt/:id", getPromptById);
 // @route GET /api/r-prompts/my-recordings
 // @access Private
 router.get("/my-recordings", getUserPrompts);
+
+// @desc Get user prompts by user ID
+// @route GET /api/r-prompts/user-recordings/:userId
+// @access Private
+// @param userId: [TEXT] - The MongoDB ObjectId of the user
+router.get("/user-recordings/:userId", getPromptsByUser);
 
 // @desc Upload prompt recording
 // @route POST /api/r-prompts/upload
