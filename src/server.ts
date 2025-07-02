@@ -46,7 +46,7 @@ app.set('trust proxy', true);
 // Use routes
 app.use("/api/v2/auth", authRoutes);
 app.use("/api/v2/r-prompts", regularPromptRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/v2/users", userRoutes);
 
 // Connect to MongoDB
 const MONGO_URI = process.env.MONGO_URI;
