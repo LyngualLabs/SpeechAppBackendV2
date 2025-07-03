@@ -6,6 +6,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes";
 import regularPromptRoutes from "./routes/regularPromptRoutes";
+import naturalPromptRoute from "./routes/naturalPromptRoute";
 import authRoutes from "./routes/authRoutes";
 
 // Load environment variables
@@ -41,11 +42,12 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 // Use routes
 app.use("/api/v2/auth", authRoutes);
 app.use("/api/v2/r-prompts", regularPromptRoutes);
+app.use("/api/v2/n-prompts", naturalPromptRoute);
 app.use("/api/v2/users", userRoutes);
 
 // Connect to MongoDB

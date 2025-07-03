@@ -2,8 +2,6 @@ import { Schema, model, Document } from "mongoose";
 
 // Main interface for NaturalPrompt document
 export interface INaturalPrompt extends Document {
-  text_id: string;
-  text: string;
   prompt: string;
   prompt_id: string;
   maxUsers: number;
@@ -15,16 +13,6 @@ export interface INaturalPrompt extends Document {
 
 const NaturalPromptSchema = new Schema<INaturalPrompt>(
   {
-    text_id: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    text: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     prompt: {
       type: String,
       required: true,
