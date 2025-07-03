@@ -5,6 +5,16 @@ import { User } from "../models/User";
 import { NaturalPrompt, INaturalPrompt } from "../models/NaturalPrompts";
 import { NaturalRecording } from "../models/NaturalRecordings";
 const admin = require("firebase-admin");
+import { firebaseConfig } from "../config/firebase";
+
+// Initialize Firebase Admin
+const serviceAccount = firebaseConfig;
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
+  });
+}
 
 // Interface for uploaded prompt data
 interface IUploadedNaturalPrompt {
@@ -320,6 +330,88 @@ export const getUserPrompts = asyncHandler(
   }
 );
 
+export const getPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+
+    try {
+      // Validate userId format
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get user's recordings with prompt details
+      const userRecordings = await NaturalRecording.find({ user: userId })
+        .populate({
+          path: "prompt",
+          select: "prompt",
+        })
+        .sort({ createdAt: -1 }) 
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+          },
+        });
+        return;
+      }
+
+      // Format the response
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
+          prompt: (recording.prompt as any)?.prompt,
+        },
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount: formattedRecordings.length,
+          verifiedCount: formattedRecordings.filter((r) => r.isVerified).length,
+          unverifiedCount: formattedRecordings.filter((r) => !r.isVerified)
+            .length,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
 export const verifyPrompts = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     const { userId } = req.params;
@@ -491,89 +583,6 @@ export const deletePrompts = asyncHandler(
     } catch (error) {
       console.error("Error deleting recordings:", error);
       res.status(500).json({ error: "Internal server error" });
-    }
-  }
-);
-
-export const getUserPromptsByUserId = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
-
-    try {
-      // Validate userId format
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        res.status(400).json({ error: "Invalid user ID format" });
-        return;
-      }
-
-      // Find the user
-      const user = await User.findById(userId);
-      if (!user) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-
-      // Get user's recordings with prompt details
-      const userRecordings = await NaturalRecording.find({ user: userId })
-        .populate({
-          path: "prompt",
-          select: "prompt",
-        })
-        .sort({ createdAt: -1 }) // Most recent first
-        .lean();
-
-      if (!userRecordings.length) {
-        res.status(200).json({
-          success: true,
-          message: `No recordings found for user ${user.fullname}`,
-          data: {
-            user: {
-              id: user._id,
-              fullname: user.fullname,
-              email: user.email,
-            },
-            recordings: [],
-            totalCount: 0,
-          },
-        });
-        return;
-      }
-
-      // Format the response
-      const formattedRecordings = userRecordings.map((recording) => ({
-        id: recording._id,
-        audioUrl: recording.audioUrl,
-        isVerified: recording.isVerified,
-        prompt_answer: recording.prompt_answer,
-        createdAt: recording.createdAt,
-        updatedAt: recording.updatedAt,
-        prompt: {
-          id: (recording.prompt as any)?._id,
-          prompt: (recording.prompt as any)?.prompt,
-        },
-      }));
-
-      res.status(200).json({
-        success: true,
-        data: {
-          user: {
-            id: user._id,
-            fullname: user.fullname,
-            email: user.email,
-          },
-          recordings: formattedRecordings,
-          totalCount: formattedRecordings.length,
-          verifiedCount: formattedRecordings.filter((r) => r.isVerified).length,
-          unverifiedCount: formattedRecordings.filter((r) => !r.isVerified)
-            .length,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching user prompts:", error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Server error",
-      });
     }
   }
 );

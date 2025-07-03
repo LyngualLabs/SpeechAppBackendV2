@@ -8,6 +8,7 @@ import userRoutes from "./routes/userRoutes";
 import regularPromptRoutes from "./routes/regularPromptRoutes";
 import naturalPromptRoute from "./routes/naturalPromptRoute";
 import authRoutes from "./routes/authRoutes";
+import paymentRoutes from "./routes/payment";
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.set("trust proxy", true);
 app.use("/api/v2/auth", authRoutes);
 app.use("/api/v2/r-prompts", regularPromptRoutes);
 app.use("/api/v2/n-prompts", naturalPromptRoute);
+app.use("/api/v2/payments", paymentRoutes);
 app.use("/api/v2/users", userRoutes);
 
 // Connect to MongoDB

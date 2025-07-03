@@ -5,6 +5,9 @@ import {
   getPrompts,
   uploadPrompt,
   getUserPrompts,
+  getPromptsByUser,
+  verifyPrompts,
+  deletePrompts,
 } from "../controllers/naturalPromptController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -28,11 +31,27 @@ router.get("/get-prompt", getPrompts);
 // @access Private
 router.get("/my-recordings", getUserPrompts);
 
+// @desc Get user prompts by user ID
+// @route GET /api/n-prompts/user-recordings/:userId
+// @access Private
+// @param userId: [TEXT] - The MongoDB ObjectId of the user
+router.get("/user-recordings/:userId", getPromptsByUser);
+
 // @desc Upload natural prompt recording
 // @route POST /api/n-prompts/upload
 // @access Private
 // @body audioFile: [FILE] - Select your audio file (mp3, wav, etc.)
 // @body prompt_id: [TEXT] - The MongoDB ObjectId of the natural prompt
 router.post("/upload", upload.single("audioFile"), uploadPrompt);
+
+// @desc Verify user recordings
+// @route PUT /api/n-prompts/verify/:userId
+// @access Private (Admin only)
+router.put("/verify/:userId", verifyPrompts);
+
+// @desc Delete user recordings
+// @route DELETE /api/n-prompts/delete/:userId
+// @access Private (Admin only)
+router.delete("/delete/:userId", deletePrompts);
 
 export default router;
