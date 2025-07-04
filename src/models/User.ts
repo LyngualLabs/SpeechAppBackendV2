@@ -21,6 +21,7 @@ const UserSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: ["super-admin", "admin", "user"],
+      
     },
     personalInfo: {
       age: { type: Number },
