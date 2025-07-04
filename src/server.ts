@@ -6,7 +6,9 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import userRoutes from "./routes/userRoutes";
 import regularPromptRoutes from "./routes/regularPromptRoutes";
+import naturalPromptRoute from "./routes/naturalPromptRoute";
 import authRoutes from "./routes/authRoutes";
+import paymentRoutes from "./routes/payment";
 
 // Load environment variables
 dotenv.config();
@@ -24,13 +26,6 @@ app.use(
       "https://www.ambitious-mushroom-0397fd710.6.azurestaticapps.net",
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-    ],
   })
 );
 
@@ -41,12 +36,14 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 // Use routes
 app.use("/api/v2/auth", authRoutes);
 app.use("/api/v2/r-prompts", regularPromptRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/v2/n-prompts", naturalPromptRoute);
+app.use("/api/v2/payments", paymentRoutes);
+app.use("/api/v2/users", userRoutes);
 
 // Connect to MongoDB
 const MONGO_URI = process.env.MONGO_URI;

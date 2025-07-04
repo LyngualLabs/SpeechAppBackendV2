@@ -117,6 +117,7 @@ export const signIn = asyncHandler(
         success: true,
         fullname: user.fullname,
         email: user.email,
+        role: user.role || "user",
         token: token,
       };
 

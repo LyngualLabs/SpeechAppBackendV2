@@ -33,10 +33,10 @@ const RegularPromptSchema = new Schema<IRegularPrompt>(
       required: true,
       trim: true,
     },
-    prompt_id: { 
+    prompt_id: {
       type: String,
       required: true,
-      unique: true, 
+      unique: true,
       trim: true,
     },
     emotions: {

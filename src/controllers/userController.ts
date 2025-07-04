@@ -1,12 +1,32 @@
 import { Request, Response } from 'express';
-// import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { RegularRecording } from '../models/RegularRecordings';
 import { IUser } from '../interfaces/IUser';
 
-// Get all users
+// Get all users with recording count using aggregation
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users: IUser[] = await User.find().select('-password');
+    const users = await User.aggregate([
+      {
+        $lookup: {
+          from: 'regularrecordings', // collection name (lowercase, pluralized)
+          localField: '_id',
+          foreignField: 'user',
+          as: 'recordings'
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          fullname: 1,
+          email: 1,
+          'personalInfo.gender': 1,
+          regularRecordingsCount: { $size: '$recordings' },
+          _id: 0 
+        }
+      }
+    ]);
+    
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });

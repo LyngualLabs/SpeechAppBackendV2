@@ -2,24 +2,25 @@ import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
 import { User } from "../models/User";
-import { RegularPrompt, IRegularPrompt } from "../models/RegularPrompts";
-import { RegularRecording } from "../models/RegularRecordings";
+import { NaturalPrompt, INaturalPrompt } from "../models/NaturalPrompts";
+import { NaturalRecording } from "../models/NaturalRecordings";
 const admin = require("firebase-admin");
 import { firebaseConfig } from "../config/firebase";
 
+// Initialize Firebase Admin
 const serviceAccount = firebaseConfig;
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
-});
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: "gs://transcribeme-lynguallabs.firebasestorage.app",
+  });
+}
 
 // Interface for uploaded prompt data
-interface IUploadedPrompt {
+interface IUploadedNaturalPrompt {
   text_id: string;
+  text: string;
   prompt: string;
-  emotions?: string;
-  language_tags?: Array<{ language: string; word: string }>;
-  domain?: string;
   maxUsers?: number;
 }
 
@@ -27,7 +28,6 @@ interface AuthRequest extends Request {
   user?: {
     _id: string;
     fullname: string;
-    prompts?: Array<{ prompt_id: string }>;
   };
 }
 
@@ -37,18 +37,15 @@ export const addBulkPrompts = asyncHandler(
     res: Response
   ): Promise<any> => {
     try {
-      // 1. Check if file exists
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      // 2. Parse JSON file
-      let prompts: IUploadedPrompt | IUploadedPrompt[];
+      let prompts: IUploadedNaturalPrompt | IUploadedNaturalPrompt[];
       try {
         const fileContent = req.file.buffer.toString("utf8").trim();
         prompts = JSON.parse(fileContent);
 
-        // Convert single object to array
         if (!Array.isArray(prompts)) {
           prompts = [prompts];
         }
@@ -59,18 +56,13 @@ export const addBulkPrompts = asyncHandler(
         });
       }
 
-      // 3. Basic validation
       const validPrompts = prompts
-        .filter((prompt): prompt is IUploadedPrompt =>
-          Boolean(prompt.text_id && prompt.prompt)
+        .filter((prompt): prompt is IUploadedNaturalPrompt =>
+          Boolean(prompt.prompt)
         )
         .map((prompt, index) => ({
-          text_id: prompt.text_id,
           prompt: prompt.prompt,
           prompt_id: `${index + 1}-${prompts.length}`,
-          emotions: prompt.emotions || "Neutral",
-          language_tags: prompt.language_tags || [],
-          domain: prompt.domain || "General",
           maxUsers: prompt.maxUsers || 3,
           userCount: 0,
           active: true,
@@ -80,10 +72,8 @@ export const addBulkPrompts = asyncHandler(
         return res.status(400).json({ error: "No valid prompts found" });
       }
 
-      // 4. Insert to database
-      const insertedPrompts = await RegularPrompt.insertMany(validPrompts);
+      const insertedPrompts = await NaturalPrompt.insertMany(validPrompts);
 
-      // 5. Return success response
       res.status(201).json({
         success: true,
         insertedCount: insertedPrompts.length,
@@ -99,30 +89,26 @@ export const addBulkPrompts = asyncHandler(
 export const getPrompts = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      // Find the current user
       const user = await User.findById(req.user?._id);
       if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
       }
 
-      // Get user's existing recordings to exclude prompts they've already recorded
-      const existingRecordings = await RegularRecording.find({ user: user._id })
+      const existingRecordings = await NaturalRecording.find({ user: user._id })
         .select("prompt")
         .lean();
 
       const recordedPromptIds = existingRecordings.map((rec) => rec.prompt);
 
-      // Create the base query for active prompts with remaining capacity
-      const query: mongoose.FilterQuery<typeof RegularPrompt> = {
+      const query: mongoose.FilterQuery<typeof NaturalPrompt> = {
         active: true,
         $expr: { $lt: ["$userCount", "$maxUsers"] },
         _id: { $nin: recordedPromptIds },
       };
 
-      // Find prompts that match our criteria
-      const availablePrompts = await RegularPrompt.find(query)
-        .select("text_id prompt emotions domain language_tags")
+      const availablePrompts = await NaturalPrompt.find(query)
+        .select("text_id text prompt")
         .lean();
 
       if (!availablePrompts.length) {
@@ -133,7 +119,6 @@ export const getPrompts = asyncHandler(
         return;
       }
 
-      // Select a random prompt from the available ones
       const randomPrompt =
         availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
 
@@ -141,11 +126,7 @@ export const getPrompts = asyncHandler(
         success: true,
         data: {
           id: randomPrompt._id,
-          text_id: randomPrompt.text_id,
           prompt: randomPrompt.prompt,
-          emotions: randomPrompt.emotions,
-          domain: randomPrompt.domain,
-          language_tags: randomPrompt.language_tags,
         },
       });
     } catch (error) {
@@ -163,12 +144,16 @@ export const uploadPrompt = asyncHandler(
     req: AuthRequest & { file?: Express.Multer.File },
     res: Response
   ): Promise<void> => {
-    const { prompt_id } = req.body;
+    const { prompt_id, prompt_answer } = req.body;
 
     try {
-      // 1. Validate required fields
       if (!prompt_id) {
         res.status(400).json({ error: "Prompt ID is required" });
+        return;
+      }
+
+      if (!prompt_answer) {
+        res.status(400).json({ error: "Prompt answer is required" });
         return;
       }
 
@@ -177,20 +162,17 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 2. Validate prompt_id format
       if (!mongoose.Types.ObjectId.isValid(prompt_id)) {
         res.status(400).json({ error: "Invalid prompt ID format" });
         return;
       }
 
-      // 3. Find the prompt
-      const prompt = await RegularPrompt.findById(prompt_id);
+      const prompt = await NaturalPrompt.findById(prompt_id);
       if (!prompt) {
         res.status(404).json({ error: "Prompt not found" });
         return;
       }
 
-      // 4. Check if prompt is active and has capacity
       if (!prompt.active) {
         res.status(400).json({ error: "This prompt is no longer active" });
         return;
@@ -203,8 +185,7 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 5. Check if user already recorded this prompt
-      const existingRecording = await RegularRecording.findOne({
+      const existingRecording = await NaturalRecording.findOne({
         user: req.user?._id,
         prompt: prompt_id,
       });
@@ -216,59 +197,51 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 6. Upload file to Firebase Storage
       const file = req.file;
       const userFullName =
         req.user?.fullname?.replace(/\s+/g, "_") || "Unknown";
       const userId = req.user?._id;
       const nameSuffix = userFullName.slice(-4);
-      const folderName = "Regular_Prompts_V2";
+      const folderName = "Natural_Prompts_V2";
 
-      const uniqueFileName = `${folderName}/${nameSuffix}_${userId}_${
-        prompt.text_id
-      }_${Date.now()}_${file.originalname}`;
+      const uniqueFileName = `${folderName}/${nameSuffix}_${userId}_${Date.now()}_${
+        file.originalname
+      }`;
 
-      // const storageRef = bucket.file(uniqueFileName);
       const storageRef = admin.storage().bucket().file(uniqueFileName);
 
-      // Upload the file
       await storageRef.save(file.buffer, {
         metadata: {
           contentType: file.mimetype,
         },
       });
 
-      // Make the file publicly accessible
       await storageRef.makePublic();
 
-      // Generate the public URL
       const publicUrl = `https://storage.googleapis.com/${
         admin.storage().bucket().name
       }/${uniqueFileName}`;
 
-      // 7. Create recording entry
-      const newRecording = new RegularRecording({
+      const newRecording = new NaturalRecording({
         user: req.user?._id,
         prompt: prompt_id,
         audioUrl: publicUrl,
+        prompt_answer: prompt_answer, // Add the prompt answer
         isVerified: false,
       });
 
       await newRecording.save();
 
-      // 8. Update prompt userCount
-      const updatedPrompt = await RegularPrompt.findByIdAndUpdate(
+      const updatedPrompt = await NaturalPrompt.findByIdAndUpdate(
         prompt_id,
         { $inc: { userCount: 1 } },
         { new: true }
       );
 
-      // 9. If prompt reached max users, deactivate it
       if (updatedPrompt && updatedPrompt.userCount >= updatedPrompt.maxUsers) {
-        await RegularPrompt.findByIdAndUpdate(prompt_id, { active: false });
+        await NaturalPrompt.findByIdAndUpdate(prompt_id, { active: false });
       }
 
-      // 10. Return success response
       res.status(201).json({
         success: true,
         message: "Recording uploaded successfully",
@@ -276,11 +249,9 @@ export const uploadPrompt = asyncHandler(
           recording: {
             id: newRecording._id,
             audioUrl: publicUrl,
+            prompt_answer: newRecording.prompt_answer, // Include in response
             prompt: {
-              text_id: prompt.text_id,
               prompt: prompt.prompt,
-              emotions: prompt.emotions,
-              domain: prompt.domain,
             },
             createdAt: newRecording.createdAt,
           },
@@ -299,20 +270,18 @@ export const uploadPrompt = asyncHandler(
 export const getUserPrompts = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      // Find the current user
       const user = await User.findById(req.user?._id);
       if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
       }
 
-      // Get user's recordings with prompt details
-      const userRecordings = await RegularRecording.find({ user: user._id })
+      const userRecordings = await NaturalRecording.find({ user: user._id })
         .populate({
           path: "prompt",
-          select: "text_id prompt emotions domain language_tags",
+          select: "text_id text prompt",
         })
-        .sort({ createdAt: -1 }) // Most recent first
+        .sort({ createdAt: -1 })
         .lean();
 
       if (!userRecordings.length) {
@@ -327,7 +296,6 @@ export const getUserPrompts = asyncHandler(
         return;
       }
 
-      // Format the response
       const formattedRecordings = userRecordings.map((recording) => ({
         id: recording._id,
         audioUrl: recording.audioUrl,
@@ -337,9 +305,8 @@ export const getUserPrompts = asyncHandler(
         prompt: {
           id: (recording.prompt as any)?._id,
           text_id: (recording.prompt as any)?.text_id,
+          text: (recording.prompt as any)?.text,
           prompt: (recording.prompt as any)?.prompt,
-          emotions: (recording.prompt as any)?.emotions,
-          domain: (recording.prompt as any)?.domain,
         },
       }));
 
@@ -368,11 +335,13 @@ export const getPromptsByUser = asyncHandler(
     const { userId } = req.params;
 
     try {
+      // Validate userId format
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         res.status(400).json({ error: "Invalid user ID format" });
         return;
       }
 
+      // Find the user
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({ error: "User not found" });
@@ -380,12 +349,12 @@ export const getPromptsByUser = asyncHandler(
       }
 
       // Get user's recordings with prompt details
-      const userRecordings = await RegularRecording.find({ user: userId })
+      const userRecordings = await NaturalRecording.find({ user: userId })
         .populate({
           path: "prompt",
-          select: "text_id prompt emotions domain language_tags",
+          select: "prompt",
         })
-        // .sort({ createdAt: -1 })
+        .sort({ createdAt: -1 }) 
         .lean();
 
       if (!userRecordings.length) {
@@ -405,16 +374,16 @@ export const getPromptsByUser = asyncHandler(
         return;
       }
 
+      // Format the response
       const formattedRecordings = userRecordings.map((recording) => ({
         id: recording._id,
         audioUrl: recording.audioUrl,
         isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
         prompt: {
           id: (recording.prompt as any)?._id,
-          text_id: (recording.prompt as any)?.text_id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
           prompt: (recording.prompt as any)?.prompt,
-          emotions: (recording.prompt as any)?.emotions,
-          domain: (recording.prompt as any)?.domain,
         },
       }));
 
@@ -435,67 +404,6 @@ export const getPromptsByUser = asyncHandler(
       });
     } catch (error) {
       console.error("Error fetching user prompts:", error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Server error",
-      });
-    }
-  }
-);
-
-export const getPromptById = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
-
-    try {
-      // Validate if ID is provided
-      if (!id) {
-        res.status(400).json({ error: "Prompt ID is required" });
-        return;
-      }
-
-      let prompt;
-
-      // Check if it's a valid MongoDB ObjectId format
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        // Search by MongoDB _id
-        prompt = await RegularPrompt.findById(id).lean();
-      }
-
-      // If not found by _id or not a valid ObjectId, try searching by prompt_id
-      if (!prompt) {
-        prompt = await RegularPrompt.findOne({ prompt_id: id }).lean();
-      }
-
-      // If still not found, return error
-      if (!prompt) {
-        res.status(404).json({
-          success: false,
-          error: "Prompt not found",
-        });
-        return;
-      }
-
-      // Format response
-      res.status(200).json({
-        success: true,
-        data: {
-          id: prompt._id,
-          text_id: prompt.text_id,
-          prompt: prompt.prompt,
-          prompt_id: prompt.prompt_id,
-          emotions: prompt.emotions,
-          domain: prompt.domain,
-          language_tags: prompt.language_tags,
-          maxUsers: prompt.maxUsers,
-          userCount: prompt.userCount,
-          active: prompt.active,
-          createdAt: prompt.createdAt,
-          updatedAt: prompt.updatedAt,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching prompt:", error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Server error",
@@ -529,11 +437,11 @@ export const verifyPrompts = asyncHandler(
       }
 
       // Find recordings that belong to this user and are not yet verified
-      const recordings = await RegularRecording.find({
+      const recordings = await NaturalRecording.find({
         _id: { $in: recordingIds },
         user: userId,
         isVerified: { $ne: true },
-      }).populate("prompt", "text_id prompt");
+      }).populate("prompt", "prompt");
 
       if (recordings.length === 0) {
         res.status(400).json({
@@ -543,7 +451,7 @@ export const verifyPrompts = asyncHandler(
       }
 
       // Mark recordings as verified
-      const updateResult = await RegularRecording.updateMany(
+      const updateResult = await NaturalRecording.updateMany(
         {
           _id: { $in: recordings.map((r) => r._id) },
           user: userId,
@@ -553,9 +461,6 @@ export const verifyPrompts = asyncHandler(
       );
 
       const verifiedCount = updateResult.modifiedCount;
-
-      // Save the updated user document
-      await user.save();
 
       res.status(200).json({
         success: true,
@@ -594,10 +499,10 @@ export const deletePrompts = asyncHandler(
       }
 
       // Find recordings that belong to this user
-      const recordings = await RegularRecording.find({
+      const recordings = await NaturalRecording.find({
         _id: { $in: recordingIds },
         user: userId,
-      }).populate("prompt", "text_id prompt _id");
+      }).populate("prompt", "prompt _id");
 
       if (recordings.length === 0) {
         res.status(404).json({
@@ -613,7 +518,7 @@ export const deletePrompts = asyncHandler(
       const recordingIdsToDelete = recordings.map((r) => r._id);
 
       // Delete the recordings
-      const deleteResult = await RegularRecording.deleteMany({
+      const deleteResult = await NaturalRecording.deleteMany({
         _id: { $in: recordingIdsToDelete },
         user: userId,
       });
@@ -631,13 +536,14 @@ export const deletePrompts = asyncHandler(
 
         // Update each prompt's userCount
         for (const [promptId, count] of promptCountMap) {
-          await RegularPrompt.findByIdAndUpdate(promptId, {
+          await NaturalPrompt.findByIdAndUpdate(promptId, {
             $inc: { userCount: -count },
             $set: { active: true }, // Reactivate prompt if it was deactivated
           });
         }
       }
 
+      // Delete audio files from Firebase Storage
       for (const recording of recordings) {
         try {
           const fileName = recording.audioUrl.split("/").pop();
@@ -645,7 +551,7 @@ export const deletePrompts = asyncHandler(
             const storageRef = admin
               .storage()
               .bucket()
-              .file(`Regular_Prompts_V2/${fileName}`);
+              .file(`Natural_Prompts_V2/${fileName}`);
             await storageRef.delete();
           }
         } catch (fileError) {
@@ -659,11 +565,8 @@ export const deletePrompts = asyncHandler(
       // Get deleted recording details for response
       const deletedRecordings = recordings.map((r) => ({
         id: r._id,
-        promptText:
-          (r.prompt as any)?.text_id || (r.prompt as any)?.prompt || "Unknown",
+        promptText: (r.prompt as any)?.prompt || "Unknown",
       }));
-
-      await user.save();
 
       res.status(200).json({
         success: true,

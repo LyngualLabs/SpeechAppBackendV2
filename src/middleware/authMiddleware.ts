@@ -42,7 +42,6 @@ export const protect = asyncHandler(
         return;
       }
 
-     
       req.user = user;
       next();
     } catch (error) {
