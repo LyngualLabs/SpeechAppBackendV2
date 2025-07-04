@@ -17,6 +17,7 @@ if (!admin.apps.length) {
 }
 
 // Interface for uploaded prompt data
+
 interface IUploadedNaturalPrompt {
   text_id: string;
   text: string;
@@ -354,7 +355,7 @@ export const getPromptsByUser = asyncHandler(
           path: "prompt",
           select: "prompt",
         })
-        .sort({ createdAt: -1 }) 
+        .sort({ createdAt: -1 })
         .lean();
 
       if (!userRecordings.length) {
