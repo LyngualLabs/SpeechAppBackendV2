@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@emailjs/nodejs": "^5.0.2",
     "@types/cookie-parser": "^1.4.8",
     "@types/jsonwebtoken": "^9.0.9",
     "bcryptjs": "^3.0.2",

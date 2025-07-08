@@ -21,7 +21,6 @@ const UserSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: ["super-admin", "admin", "user"],
-      
     },
     personalInfo: {
       age: { type: Number },
@@ -37,6 +36,15 @@ const UserSchema = new Schema<IUser>(
       accountNumber: { type: String },
     },
     languages: [String],
+    emailVerification: {
+      code: String,
+      expiresAt: Date,
+      isVerified: { type: Boolean, default: false },
+    },
+    passwordReset: {
+      code: String,
+      expiresAt: Date,
+    },
   },
   {
     timestamps: true,
