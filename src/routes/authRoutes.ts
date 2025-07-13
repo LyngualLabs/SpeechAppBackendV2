@@ -24,6 +24,6 @@ router.post("/verify-reset-code", verifyResetCode);
 router.post("/reset-password/:email", resetPassword);
 
 router.use(protect);
-router.get("/me", protect, getUser);
+router.get("/me", getUser);
 
 export default router;

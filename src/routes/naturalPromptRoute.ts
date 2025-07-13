@@ -8,6 +8,7 @@ import {
   getPromptsByUser,
   verifyPrompts,
   deletePrompts,
+  getEnhancedNaturalPromptStats,
 } from "../controllers/naturalPromptController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -15,6 +16,11 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(protect);
+
+// @desc Get enhanced natural prompt stats
+// @route GET /api/n-prompts/enhanced-stats
+// @access Private
+router.get("/stats", getEnhancedNaturalPromptStats);
 
 // @desc Add bulk natural prompts
 // @route POST /api/n-prompts/bulk

@@ -587,3 +587,183 @@ export const deletePrompts = asyncHandler(
     }
   }
 );
+
+
+// Add this to naturalPromptController.ts
+
+export const getEnhancedNaturalPromptStats = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Basic counts
+      const totalPrompts = await NaturalPrompt.countDocuments();
+      const activePrompts = await NaturalPrompt.countDocuments({ active: true });
+      
+      // Available prompts (active with remaining capacity)
+      const availablePrompts = await NaturalPrompt.countDocuments({
+        active: true,
+        $expr: { $lt: ["$userCount", "$maxUsers"] }
+      });
+
+      // Usage statistics
+      const fullyUsedPrompts = await NaturalPrompt.countDocuments({
+        $expr: { $gte: ["$userCount", "$maxUsers"] }
+      });
+
+      const unusedPrompts = await NaturalPrompt.countDocuments({
+        userCount: 0
+      });
+
+      // Usage distribution
+      const usageDistribution = await NaturalPrompt.aggregate([
+        { 
+          $group: { 
+            _id: "$userCount", 
+            count: { $sum: 1 },
+            prompts: { $push: { id: "$_id", prompt_id: "$prompt_id" } }
+          } 
+        },
+        { $sort: { _id: 1 } }
+      ]);
+
+      // Get recording statistics
+      const totalRecordings = await NaturalRecording.countDocuments();
+      const verifiedRecordings = await NaturalRecording.countDocuments({ isVerified: true });
+      const unverifiedRecordings = totalRecordings - verifiedRecordings;
+
+      // Calculate percentages
+      const activePercentage = totalPrompts > 0 ? (activePrompts / totalPrompts) * 100 : 0;
+      const availablePercentage = totalPrompts > 0 ? (availablePrompts / totalPrompts) * 100 : 0;
+      const usagePercentage = totalPrompts > 0 ? (fullyUsedPrompts / totalPrompts) * 100 : 0;
+      const verificationPercentage = totalRecordings > 0 ? (verifiedRecordings / totalRecordings) * 100 : 0;
+
+      // Get top users by recording count
+      const topUsers = await NaturalRecording.aggregate([
+        {
+          $group: {
+            _id: "$user",
+            totalRecordings: { $sum: 1 },
+            verifiedRecordings: {
+              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] }
+            }
+          }
+        },
+        {
+          $sort: { totalRecordings: -1 }
+        },
+        {
+          $limit: 10
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "userInfo"
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            totalRecordings: 1,
+            verifiedRecordings: 1,
+            verificationRate: {
+              $multiply: [
+                { $divide: ["$verifiedRecordings", { $max: ["$totalRecordings", 1] }] },
+                100
+              ]
+            },
+            username: { $arrayElemAt: ["$userInfo.fullname", 0] }
+          }
+        }
+      ]);
+
+      // Weekly recording trends (last 4 weeks)
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+      const weeklyTrends = await NaturalRecording.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fourWeeksAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              week: { $week: "$createdAt" },
+              year: { $year: "$createdAt" }
+            },
+            count: { $sum: 1 },
+            verified: {
+              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] }
+            }
+          }
+        },
+        {
+          $sort: { "_id.year": 1, "_id.week": 1 }
+        }
+      ]);
+
+      // System status with multiple thresholds
+      let status = "healthy";
+      let statusMessage = "System operating normally";
+      const suggestions: string[] = [];
+
+      if (availablePercentage < 10) {
+        status = "critical";
+        statusMessage = "CRITICAL: Available natural prompt pool nearly depleted";
+        suggestions.push(
+          "Add new natural prompts immediately",
+          "Review inactive prompts for potential reactivation"
+        );
+      } else if (availablePercentage < 30) {
+        status = "warning";
+        statusMessage = "WARNING: Available natural prompt pool getting low";
+        suggestions.push(
+          "Consider adding more natural prompts"
+        );
+      }
+
+      if (usagePercentage >= 80) {
+        status = status === "healthy" ? "warning" : status;
+        statusMessage += " | High natural prompt usage detected";
+        suggestions.push("Consider increasing maxUsers for some natural prompts");
+      }
+
+      if (verificationPercentage < 40 && totalRecordings > 100) {
+        status = status === "critical" ? "critical" : "warning";
+        statusMessage += " | Low natural recording verification rate";
+        suggestions.push("Increase natural recording verification throughput");
+      }
+
+      res.status(200).json({
+        success: true,
+        promptCounts: {
+          total: totalPrompts,
+          active: activePrompts,
+          available: availablePrompts,
+          fullyUsed: fullyUsedPrompts,
+          inactive: totalPrompts - activePrompts,
+          unused: unusedPrompts
+        },
+        recordingCounts: {
+          total: totalRecordings,
+          verified: verifiedRecordings,
+          unverified: unverifiedRecordings
+        },
+        percentages: {
+          activePrompts: parseFloat(activePercentage.toFixed(2)),
+          availablePrompts: parseFloat(availablePercentage.toFixed(2)),
+        },
+        lastUpdated: new Date()
+      });
+    } catch (error) {
+      console.error("Error getting enhanced natural prompt statistics:", error);
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);

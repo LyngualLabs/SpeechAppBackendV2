@@ -683,3 +683,136 @@ export const deletePrompts = asyncHandler(
     }
   }
 );
+
+export const getEnhancedRegularPromptStats = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Basic counts
+      const totalPrompts = await RegularPrompt.countDocuments();
+      const activePrompts = await RegularPrompt.countDocuments({
+        active: true,
+      });
+
+      // Available prompts (active with remaining capacity)
+      const availablePrompts = await RegularPrompt.countDocuments({
+        active: true,
+        $expr: { $lt: ["$userCount", "$maxUsers"] },
+      });
+
+      // Usage statistics
+      const fullyUsedPrompts = await RegularPrompt.countDocuments({
+        $expr: { $gte: ["$userCount", "$maxUsers"] },
+      });
+
+      const unusedPrompts = await RegularPrompt.countDocuments({
+        userCount: 0,
+      });
+
+      // Domain distribution
+      const domainStats = await RegularPrompt.aggregate([
+        {
+          $group: {
+            _id: "$domain",
+            count: { $sum: 1 },
+            active: { $sum: { $cond: ["$active", 1, 0] } },
+          },
+        },
+        { $sort: { count: -1 } },
+      ]);
+
+      // Get recording statistics
+      const totalRecordings = await RegularRecording.countDocuments();
+      const verifiedRecordings = await RegularRecording.countDocuments({
+        isVerified: true,
+      });
+      const unverifiedRecordings = totalRecordings - verifiedRecordings;
+
+      // Calculate percentages
+      const activePercentage =
+        totalPrompts > 0 ? (activePrompts / totalPrompts) * 100 : 0;
+      const availablePercentage =
+        totalPrompts > 0 ? (availablePrompts / totalPrompts) * 100 : 0;
+      const usagePercentage =
+        totalPrompts > 0 ? (fullyUsedPrompts / totalPrompts) * 100 : 0;
+      const verificationPercentage =
+        totalRecordings > 0 ? (verifiedRecordings / totalRecordings) * 100 : 0;
+
+      // System status with multiple thresholds
+      let status = "healthy";
+      let statusMessage = "System operating normally";
+      const suggestions: string[] = [];
+
+      if (availablePercentage < 10) {
+        status = "critical";
+        statusMessage = "CRITICAL: Available prompt pool nearly depleted";
+        suggestions.push(
+          "Add new prompts immediately",
+          "Review inactive prompts for potential reactivation"
+        );
+      } else if (availablePercentage < 30) {
+        status = "warning";
+        statusMessage = "WARNING: Available prompt pool getting low";
+        suggestions.push(
+          "Consider adding more prompts",
+          "Check prompt distribution across domains"
+        );
+      }
+
+      if (usagePercentage >= 80) {
+        status = status === "healthy" ? "warning" : status;
+        statusMessage += " | High prompt usage detected";
+        suggestions.push("Consider increasing maxUsers for some prompts");
+      }
+
+      if (verificationPercentage < 40 && totalRecordings > 100) {
+        status = status === "critical" ? "critical" : "warning";
+        statusMessage += " | Low recording verification rate";
+        suggestions.push("Increase verification throughput");
+      }
+
+      // Get most needed domains (domains with fewest active prompts)
+      const domainsWithLowCoverage = domainStats
+        .filter((domain) => domain.count > 0)
+        .sort((a, b) => a.active / a.count - b.active / b.count)
+        .slice(0, 3)
+        .map((domain) => domain._id);
+
+      if (domainsWithLowCoverage.length > 0) {
+        suggestions.push(
+          `Add more prompts for domains: ${domainsWithLowCoverage.join(", ")}`
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        promptCounts: {
+          total: totalPrompts,
+          active: activePrompts,
+          available: availablePrompts,
+          fullyUsed: fullyUsedPrompts,
+          inactive: totalPrompts - activePrompts,
+          unused: unusedPrompts,
+        },
+        recordingCounts: {
+          total: totalRecordings,
+          verified: verifiedRecordings,
+          unverified: unverifiedRecordings,
+        },
+        percentages: {
+          activePrompts: parseFloat(activePercentage.toFixed(2)),
+          availablePrompts: parseFloat(availablePercentage.toFixed(2)),
+          promptUsage: parseFloat(usagePercentage.toFixed(2)),
+          verificationRate: parseFloat(verificationPercentage.toFixed(2)),
+        },
+        lastUpdated: new Date(),
+      });
+    } catch (error) {
+      console.error("Error getting enhanced regular prompt statistics:", error);
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
