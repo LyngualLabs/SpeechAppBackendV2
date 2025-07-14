@@ -9,6 +9,7 @@ import {
   getPromptById,
   verifyPrompts,
   deletePrompts,
+  getEnhancedRegularPromptStats,
 } from "../controllers/regularPromptController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -16,6 +17,11 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(protect);
+
+// @desc Get enhanced regular prompt stats
+// @route GET /api/r-prompts/enhanced-stats
+// @access Private
+router.get("/stats", getEnhancedRegularPromptStats);
 
 // @desc Add bulk prompts
 // @route POST /api/r-prompts/bulk

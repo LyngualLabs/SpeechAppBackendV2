@@ -4,7 +4,7 @@ export interface IPayment extends Document {
   user: Schema.Types.ObjectId;
   naturalRecordings: Schema.Types.ObjectId[]; // Natural recording IDs
   regularRecordings: Schema.Types.ObjectId[]; // Regular recording IDs
-  totalRecordingCount: number; // Should be 500 or multiple of 500
+  totalRecordingCount: number; // Should be 50 or multiple of 50
   naturalCount: number; // Number of natural recordings in this payment
   regularCount: number; // Number of regular recordings in this payment
   paymentAmount: number;
@@ -12,6 +12,8 @@ export interface IPayment extends Document {
   paymentMethod?: string;
   paymentReference?: string;
   paymentDate?: Date;
+  adminNotes?: string; // Admin can add notes when processing
+  processedBy?: Schema.Types.ObjectId; // Which admin processed the payment
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,7 +36,7 @@ const PaymentSchema = new Schema<IPayment>(
     totalRecordingCount: {
       type: Number,
       required: true,
-      min: 500,
+      min: 2, // Changed from 500 to 2
     },
     naturalCount: {
       type: Number,
@@ -57,6 +59,11 @@ const PaymentSchema = new Schema<IPayment>(
     paymentMethod: String,
     paymentReference: String,
     paymentDate: Date,
+    adminNotes: String,
+    processedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,
@@ -64,5 +71,9 @@ const PaymentSchema = new Schema<IPayment>(
     toObject: { virtuals: true },
   }
 );
+
+// Add indexes
+PaymentSchema.index({ user: 1, paymentStatus: 1 });
+PaymentSchema.index({ createdAt: -1 });
 
 export const Payment = model<IPayment>("Payment", PaymentSchema);
