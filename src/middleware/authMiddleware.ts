@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
 import { User } from "../models/User";
 import { IAuthRequest } from "../interfaces/IAuthRequest";
+import { auth } from "firebase-admin";
 
 export const protect = asyncHandler(
   async (req: IAuthRequest, res: Response, next: NextFunction) => {
@@ -11,11 +12,19 @@ export const protect = asyncHandler(
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
+        console.log(authHeader);
+        console.log("Token received Header:", token.substring(0, 10) + "...11");
+         console.log("Token received Header 2:", token + "...22");
       }
 
       // If no token in header, try to get from cookies
       if (!token && req.cookies && req.cookies.token) {
         token = req.cookies.token;
+        console.log("Token received from cookies:", token + "...11"); // Debugging line, remove in production
+        console.log(
+          "Token received from cookies:",
+          token.substring(0, 10) + "...22"
+        ); // Debugging line, remove in production
       }
 
       if (!token) {
