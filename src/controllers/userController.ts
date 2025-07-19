@@ -17,10 +17,18 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     const users = await User.aggregate([
       {
         $lookup: {
-          from: "regularrecordings", // collection name (lowercase, pluralized)
+          from: "regularrecordings",
           localField: "_id",
           foreignField: "user",
-          as: "recordings",
+          as: "regularRecordings",
+        },
+      },
+      {
+        $lookup: {
+          from: "naturalrecordings",
+          localField: "_id",
+          foreignField: "user",
+          as: "naturalRecordings",
         },
       },
       {
@@ -28,8 +36,17 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
           id: "$_id",
           fullname: 1,
           email: 1,
+          role: 1,
+          suspended: 1,
           "personalInfo.gender": 1,
-          regularRecordingsCount: { $size: "$recordings" },
+          regularRecordingsCount: { $size: "$regularRecordings" },
+          naturalRecordingsCount: { $size: "$naturalRecordings" },
+          totalRecordingsCount: { 
+            $add: [
+              { $size: "$regularRecordings" }, 
+              { $size: "$naturalRecordings" }
+            ] 
+          },
           _id: 0,
         },
       },
