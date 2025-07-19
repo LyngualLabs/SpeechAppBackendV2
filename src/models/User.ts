@@ -22,6 +22,14 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["super-admin", "admin", "user"],
     },
+    dailyRegularCount: {
+      type: Number,
+      default: 0,
+    },
+    lastRegularCountDate: {
+      type: Date,
+      default: null,
+    },
     personalInfo: {
       age: { type: Number },
       gender: { type: String },

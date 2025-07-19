@@ -158,6 +158,59 @@ export const getPrompts = asyncHandler(
   }
 );
 
+export const checkDailyRegularCount = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?._id;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const lastResetDate = user.lastRegularCountDate
+        ? new Date(user.lastRegularCountDate)
+        : null;
+
+      if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        await User.findByIdAndUpdate(userId, {
+          dailyRegularCount: 0,
+          lastRegularCountDate: today,
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Daily count reset",
+          data: { dailyRegularCount: 0, lastReset: today },
+        });
+      } else {
+        res.status(200).json({
+          success: true,
+          message: "Daily count retrieved",
+          data: {
+            dailyRegularCount: user.dailyRegularCount,
+            lastReset: user.lastRegularCountDate,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error checking daily count:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export const uploadPrompt = asyncHandler(
   async (
     req: AuthRequest & { file?: Express.Multer.File },
@@ -267,6 +320,11 @@ export const uploadPrompt = asyncHandler(
       if (updatedPrompt && updatedPrompt.userCount >= updatedPrompt.maxUsers) {
         await RegularPrompt.findByIdAndUpdate(prompt_id, { active: false });
       }
+
+      await User.findByIdAndUpdate(req.user?._id, {
+        $inc: { dailyRegularCount: 1 },
+        $set: { lastRegularCountDate: new Date() },
+      });
 
       // 10. Return success response
       res.status(201).json({
@@ -836,15 +894,15 @@ export const getVerifiedPromptsByUser = asyncHandler(
       }
 
       // Get total count of verified recordings for this user
-      const totalCount = await RegularRecording.countDocuments({ 
+      const totalCount = await RegularRecording.countDocuments({
         user: userId,
-        isVerified: true 
+        isVerified: true,
       });
-      
+
       // Get user's verified recordings with pagination
-      const userRecordings = await RegularRecording.find({ 
+      const userRecordings = await RegularRecording.find({
         user: userId,
-        isVerified: true 
+        isVerified: true,
       })
         .populate({
           path: "prompt",
@@ -871,8 +929,8 @@ export const getVerifiedPromptsByUser = asyncHandler(
               total: 0,
               page,
               limit,
-              pages: 0
-            }
+              pages: 0,
+            },
           },
         });
         return;
@@ -908,8 +966,8 @@ export const getVerifiedPromptsByUser = asyncHandler(
             total: totalCount,
             page,
             limit,
-            pages: totalPages
-          }
+            pages: totalPages,
+          },
         },
       });
     } catch (error) {
@@ -942,15 +1000,15 @@ export const getUnverifiedPromptsByUser = asyncHandler(
       }
 
       // Get total count of unverified recordings for this user
-      const totalCount = await RegularRecording.countDocuments({ 
+      const totalCount = await RegularRecording.countDocuments({
         user: userId,
-        isVerified: false 
+        isVerified: false,
       });
-      
+
       // Get user's unverified recordings with pagination
-      const userRecordings = await RegularRecording.find({ 
+      const userRecordings = await RegularRecording.find({
         user: userId,
-        isVerified: false 
+        isVerified: false,
       })
         .populate({
           path: "prompt",
@@ -977,8 +1035,8 @@ export const getUnverifiedPromptsByUser = asyncHandler(
               total: 0,
               page,
               limit,
-              pages: 0
-            }
+              pages: 0,
+            },
           },
         });
         return;
@@ -1014,8 +1072,8 @@ export const getUnverifiedPromptsByUser = asyncHandler(
             total: totalCount,
             page,
             limit,
-            pages: totalPages
-          }
+            pages: totalPages,
+          },
         },
       });
     } catch (error) {
