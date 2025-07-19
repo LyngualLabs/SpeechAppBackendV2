@@ -194,3 +194,38 @@ export const updateDetails = asyncHandler(
     }
   }
 );
+
+export const toggleAdminRole = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+
+    if (!userId) {
+      res.status(400).json({ message: "User ID is required" });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const newRole = user.role === "admin" ? "user" : "admin";
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { role: newRole },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `User role changed to ${newRole} successfully`,
+      data: {
+        userId: updatedUser?._id,
+        fullname: updatedUser?.fullname,
+        email: updatedUser?.email,
+        role: updatedUser?.role,
+      },
+    });
+  }
+);
