@@ -6,8 +6,11 @@ import {
   signWaiver,
   updateDetails,
 } from "../controllers/userController";
+import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
+
+router.use(protect);
 
 router.get("/all-users", getUsers);
 router.post("/", createUser);

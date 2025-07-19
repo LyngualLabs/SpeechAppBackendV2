@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
-import asyncHandler from "express-async-handler";  
+import asyncHandler from "express-async-handler";
 import { RegularRecording } from "../models/RegularRecordings";
 import { IUser } from "../interfaces/IUser";
 
@@ -99,97 +99,98 @@ export const toggleUserSuspension = asyncHandler(
   }
 );
 
-export const signWaiver = asyncHandler(async (
-  req: AuthRequest, 
-  res: Response
-): Promise<void> => {
-  const userId = req.user?._id;
-  
-  try {
-    if (!userId) {
-      res.status(401).json({ message: "Not authorized" });
-      return;
-    }
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
+export const signWaiver = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?._id;
 
-    user.signedWaiver = true;
-    await user.save();
+    try {
+      if (!userId) {
+        res.status(401).json({ message: "Not authorized" });
+        return;
+      }
 
-    res.status(200).json({
-      message: "User signed waiver successfully"
-    });
-  } catch (err) {
-    console.error("Error signing waiver:", err);
-    res.status(500).json({ message: "Failed to sign waiver" });
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      user.signedWaiver = true;
+      await user.save();
+
+      res.status(200).json({
+        message: "User signed waiver successfully",
+      });
+    } catch (err) {
+      console.error("Error signing waiver:", err);
+      res.status(500).json({ message: "Failed to sign waiver" });
+    }
   }
-});
+);
 
-export const updateDetails = asyncHandler(async (
-  req: AuthRequest, 
-  res: Response
-): Promise<void> => {
-  const userId = req.user?._id;
-  const {
-    phoneNumber,
-    gender,
-    nationality,
-    state,
-    age,
-    occupation,
-    bankName,
-    accountNumber,
-    accountName,
-    languages,
-  } = req.body;
+export const updateDetails = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?._id;
+    const {
+      phoneNumber,
+      gender,
+      nationality,
+      state,
+      age,
+      occupation,
+      bankName,
+      accountNumber,
+      accountName,
+      languages,
+    } = req.body;
 
-  try {
-    if (!userId) {
-      res.status(401).json({ message: "Not authorized" });
-      return;
+    try {
+      if (!userId) {
+        res.status(401).json({ message: "Not authorized" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      if (!user.personalInfo) user.personalInfo = {} as any;
+      if (!user.bankDetails) user.bankDetails = {} as any;
+
+      if (phoneNumber !== undefined)
+        user.personalInfo.phoneNumber = phoneNumber;
+      if (gender !== undefined) user.personalInfo.gender = gender;
+      if (nationality !== undefined)
+        user.personalInfo.nationality = nationality;
+      if (state !== undefined) user.personalInfo.state = state;
+      if (age !== undefined) user.personalInfo.age = age;
+      if (occupation !== undefined) user.personalInfo.occupation = occupation;
+
+      if (bankName !== undefined) user.bankDetails.bankName = bankName;
+      if (accountNumber !== undefined)
+        user.bankDetails.accountNumber = accountNumber;
+      if (accountName !== undefined) user.bankDetails.accountName = accountName;
+
+      if (languages !== undefined) user.languages = languages;
+
+      user.updatedPersonalInfo = true;
+
+      await user.save();
+
+      res.status(200).json({
+        message: "User details updated successfully",
+        user: {
+          personalInfo: user.personalInfo,
+          bankDetails: user.bankDetails,
+          languages: user.languages,
+        },
+      });
+    } catch (err) {
+      console.error("Error updating user details:", err);
+      res.status(500).json({ message: "Failed to update user details" });
     }
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-
-    if (!user.personalInfo) user.personalInfo = {} as any;
-    if (!user.bankDetails) user.bankDetails = {} as any;
-
-    if (phoneNumber !== undefined) user.personalInfo.phoneNumber = phoneNumber;
-    if (gender !== undefined) user.personalInfo.gender = gender;
-    if (nationality !== undefined) user.personalInfo.nationality = nationality;
-    if (state !== undefined) user.personalInfo.state = state;
-    if (age !== undefined) user.personalInfo.age = age;
-    if (occupation !== undefined) user.personalInfo.occupation = occupation;
-
-    if (bankName !== undefined) user.bankDetails.bankName = bankName;
-    if (accountNumber !== undefined) user.bankDetails.accountNumber = accountNumber;
-    if (accountName !== undefined) user.bankDetails.accountName = accountName;
-
-    if (languages !== undefined) user.languages = languages;
-
-    user.updatedPersonalInfo = true;
-
-    await user.save();
-
-    res.status(200).json({
-      message: "User details updated successfully",
-      user: {
-        personalInfo: user.personalInfo,
-        bankDetails: user.bankDetails,
-        languages: user.languages,
-      },
-    });
-  } catch (err) {
-    console.error("Error updating user details:", err);
-    res.status(500).json({ message: "Failed to update user details" });
   }
-});
+);
