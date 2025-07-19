@@ -385,7 +385,6 @@ export const getPromptsByUser = asyncHandler(
           path: "prompt",
           select: "text_id prompt emotions domain language_tags",
         })
-        // .sort({ createdAt: -1 })
         .lean();
 
       if (!userRecordings.length) {
@@ -812,6 +811,218 @@ export const getEnhancedRegularPromptStats = asyncHandler(
         success: false,
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+export const getVerifiedPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of verified recordings for this user
+      const totalCount = await RegularRecording.countDocuments({ 
+        user: userId,
+        isVerified: true 
+      });
+      
+      // Get user's verified recordings with pagination
+      const userRecordings = await RegularRecording.find({ 
+        user: userId,
+        isVerified: true 
+      })
+        .populate({
+          path: "prompt",
+          select: "text_id prompt emotions domain language_tags",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No verified recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0
+            }
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          text_id: (recording.prompt as any)?.text_id,
+          prompt: (recording.prompt as any)?.prompt,
+          emotions: (recording.prompt as any)?.emotions,
+          domain: (recording.prompt as any)?.domain,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching verified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
+export const getUnverifiedPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of unverified recordings for this user
+      const totalCount = await RegularRecording.countDocuments({ 
+        user: userId,
+        isVerified: false 
+      });
+      
+      // Get user's unverified recordings with pagination
+      const userRecordings = await RegularRecording.find({ 
+        user: userId,
+        isVerified: false 
+      })
+        .populate({
+          path: "prompt",
+          select: "text_id prompt emotions domain language_tags",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No unverified recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0
+            }
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          text_id: (recording.prompt as any)?.text_id,
+          prompt: (recording.prompt as any)?.prompt,
+          emotions: (recording.prompt as any)?.emotions,
+          domain: (recording.prompt as any)?.domain,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching unverified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
       });
     }
   }
