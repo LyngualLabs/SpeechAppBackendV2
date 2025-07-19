@@ -588,7 +588,6 @@ export const deletePrompts = asyncHandler(
   }
 );
 
-
 // Add this to naturalPromptController.ts
 
 export const getEnhancedNaturalPromptStats = asyncHandler(
@@ -596,45 +595,53 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
     try {
       // Basic counts
       const totalPrompts = await NaturalPrompt.countDocuments();
-      const activePrompts = await NaturalPrompt.countDocuments({ active: true });
-      
+      const activePrompts = await NaturalPrompt.countDocuments({
+        active: true,
+      });
+
       // Available prompts (active with remaining capacity)
       const availablePrompts = await NaturalPrompt.countDocuments({
         active: true,
-        $expr: { $lt: ["$userCount", "$maxUsers"] }
+        $expr: { $lt: ["$userCount", "$maxUsers"] },
       });
 
       // Usage statistics
       const fullyUsedPrompts = await NaturalPrompt.countDocuments({
-        $expr: { $gte: ["$userCount", "$maxUsers"] }
+        $expr: { $gte: ["$userCount", "$maxUsers"] },
       });
 
       const unusedPrompts = await NaturalPrompt.countDocuments({
-        userCount: 0
+        userCount: 0,
       });
 
       // Usage distribution
       const usageDistribution = await NaturalPrompt.aggregate([
-        { 
-          $group: { 
-            _id: "$userCount", 
+        {
+          $group: {
+            _id: "$userCount",
             count: { $sum: 1 },
-            prompts: { $push: { id: "$_id", prompt_id: "$prompt_id" } }
-          } 
+            prompts: { $push: { id: "$_id", prompt_id: "$prompt_id" } },
+          },
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: 1 } },
       ]);
 
       // Get recording statistics
       const totalRecordings = await NaturalRecording.countDocuments();
-      const verifiedRecordings = await NaturalRecording.countDocuments({ isVerified: true });
+      const verifiedRecordings = await NaturalRecording.countDocuments({
+        isVerified: true,
+      });
       const unverifiedRecordings = totalRecordings - verifiedRecordings;
 
       // Calculate percentages
-      const activePercentage = totalPrompts > 0 ? (activePrompts / totalPrompts) * 100 : 0;
-      const availablePercentage = totalPrompts > 0 ? (availablePrompts / totalPrompts) * 100 : 0;
-      const usagePercentage = totalPrompts > 0 ? (fullyUsedPrompts / totalPrompts) * 100 : 0;
-      const verificationPercentage = totalRecordings > 0 ? (verifiedRecordings / totalRecordings) * 100 : 0;
+      const activePercentage =
+        totalPrompts > 0 ? (activePrompts / totalPrompts) * 100 : 0;
+      const availablePercentage =
+        totalPrompts > 0 ? (availablePrompts / totalPrompts) * 100 : 0;
+      const usagePercentage =
+        totalPrompts > 0 ? (fullyUsedPrompts / totalPrompts) * 100 : 0;
+      const verificationPercentage =
+        totalRecordings > 0 ? (verifiedRecordings / totalRecordings) * 100 : 0;
 
       // Get top users by recording count
       const topUsers = await NaturalRecording.aggregate([
@@ -643,23 +650,23 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
             _id: "$user",
             totalRecordings: { $sum: 1 },
             verifiedRecordings: {
-              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] }
-            }
-          }
+              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] },
+            },
+          },
         },
         {
-          $sort: { totalRecordings: -1 }
+          $sort: { totalRecordings: -1 },
         },
         {
-          $limit: 10
+          $limit: 10,
         },
         {
           $lookup: {
             from: "users",
             localField: "_id",
             foreignField: "_id",
-            as: "userInfo"
-          }
+            as: "userInfo",
+          },
         },
         {
           $project: {
@@ -668,13 +675,18 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
             verifiedRecordings: 1,
             verificationRate: {
               $multiply: [
-                { $divide: ["$verifiedRecordings", { $max: ["$totalRecordings", 1] }] },
-                100
-              ]
+                {
+                  $divide: [
+                    "$verifiedRecordings",
+                    { $max: ["$totalRecordings", 1] },
+                  ],
+                },
+                100,
+              ],
             },
-            username: { $arrayElemAt: ["$userInfo.fullname", 0] }
-          }
-        }
+            username: { $arrayElemAt: ["$userInfo.fullname", 0] },
+          },
+        },
       ]);
 
       // Weekly recording trends (last 4 weeks)
@@ -684,24 +696,24 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
       const weeklyTrends = await NaturalRecording.aggregate([
         {
           $match: {
-            createdAt: { $gte: fourWeeksAgo }
-          }
+            createdAt: { $gte: fourWeeksAgo },
+          },
         },
         {
           $group: {
             _id: {
               week: { $week: "$createdAt" },
-              year: { $year: "$createdAt" }
+              year: { $year: "$createdAt" },
             },
             count: { $sum: 1 },
             verified: {
-              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] }
-            }
-          }
+              $sum: { $cond: [{ $eq: ["$isVerified", true] }, 1, 0] },
+            },
+          },
         },
         {
-          $sort: { "_id.year": 1, "_id.week": 1 }
-        }
+          $sort: { "_id.year": 1, "_id.week": 1 },
+        },
       ]);
 
       // System status with multiple thresholds
@@ -711,7 +723,8 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
 
       if (availablePercentage < 10) {
         status = "critical";
-        statusMessage = "CRITICAL: Available natural prompt pool nearly depleted";
+        statusMessage =
+          "CRITICAL: Available natural prompt pool nearly depleted";
         suggestions.push(
           "Add new natural prompts immediately",
           "Review inactive prompts for potential reactivation"
@@ -719,15 +732,15 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
       } else if (availablePercentage < 30) {
         status = "warning";
         statusMessage = "WARNING: Available natural prompt pool getting low";
-        suggestions.push(
-          "Consider adding more natural prompts"
-        );
+        suggestions.push("Consider adding more natural prompts");
       }
 
       if (usagePercentage >= 80) {
         status = status === "healthy" ? "warning" : status;
         statusMessage += " | High natural prompt usage detected";
-        suggestions.push("Consider increasing maxUsers for some natural prompts");
+        suggestions.push(
+          "Consider increasing maxUsers for some natural prompts"
+        );
       }
 
       if (verificationPercentage < 40 && totalRecordings > 100) {
@@ -744,25 +757,235 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
           available: availablePrompts,
           fullyUsed: fullyUsedPrompts,
           inactive: totalPrompts - activePrompts,
-          unused: unusedPrompts
+          unused: unusedPrompts,
         },
         recordingCounts: {
           total: totalRecordings,
           verified: verifiedRecordings,
-          unverified: unverifiedRecordings
+          unverified: unverifiedRecordings,
         },
         percentages: {
           activePrompts: parseFloat(activePercentage.toFixed(2)),
           availablePrompts: parseFloat(availablePercentage.toFixed(2)),
         },
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       });
     } catch (error) {
       console.error("Error getting enhanced natural prompt statistics:", error);
       res.status(500).json({
         success: false,
         error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+export const getVerifiedPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of verified recordings for this user
+      const totalCount = await NaturalRecording.countDocuments({
+        user: userId,
+        isVerified: true,
+      });
+
+      // Get user's verified recordings with pagination
+      const userRecordings = await NaturalRecording.find({
+        user: userId,
+        isVerified: true,
+      })
+        .populate({
+          path: "prompt",
+          select: "prompt",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No verified recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0,
+            },
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
+          prompt: (recording.prompt as any)?.prompt,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching verified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
+export const getUnverifiedPromptsByUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: "Invalid user ID format" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of unverified recordings for this user
+      const totalCount = await NaturalRecording.countDocuments({
+        user: userId,
+        isVerified: false,
+      });
+
+      // Get user's unverified recordings with pagination
+      const userRecordings = await NaturalRecording.find({
+        user: userId,
+        isVerified: false,
+      })
+        .populate({
+          path: "prompt",
+          select: "prompt",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: `No unverified recordings found for user ${user.fullname}`,
+          data: {
+            user: {
+              id: user._id,
+              fullname: user.fullname,
+              email: user.email,
+            },
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0,
+            },
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
+          prompt: (recording.prompt as any)?.prompt,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+          },
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching unverified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
       });
     }
   }
