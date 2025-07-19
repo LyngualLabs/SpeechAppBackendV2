@@ -140,6 +140,59 @@ export const getPrompts = asyncHandler(
   }
 );
 
+export const checkDailyNaturalCount = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?._id;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const lastResetDate = user.lastNaturalCountDate
+        ? new Date(user.lastNaturalCountDate)
+        : null;
+
+      if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        await User.findByIdAndUpdate(userId, {
+          dailyNaturalCount: 0,
+          lastNaturalCountDate: today,
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Daily natural count reset",
+          data: { dailyNaturalCount: 0, lastReset: today },
+        });
+      } else {
+        res.status(200).json({
+          success: true,
+          message: "Daily natural count retrieved",
+          data: {
+            dailyNaturalCount: user.dailyNaturalCount,
+            lastReset: user.lastNaturalCountDate,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error checking daily natural count:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export const uploadPrompt = asyncHandler(
   async (
     req: AuthRequest & { file?: Express.Multer.File },
@@ -227,7 +280,7 @@ export const uploadPrompt = asyncHandler(
         user: req.user?._id,
         prompt: prompt_id,
         audioUrl: publicUrl,
-        prompt_answer: prompt_answer, // Add the prompt answer
+        prompt_answer: prompt_answer,
         isVerified: false,
       });
 
@@ -238,6 +291,11 @@ export const uploadPrompt = asyncHandler(
         { $inc: { userCount: 1 } },
         { new: true }
       );
+
+      await User.findByIdAndUpdate(req.user?._id, {
+        $inc: { dailyNaturalCount: 1 },
+        $set: { lastNaturalCountDate: new Date() },
+      });
 
       if (updatedPrompt && updatedPrompt.userCount >= updatedPrompt.maxUsers) {
         await NaturalPrompt.findByIdAndUpdate(prompt_id, { active: false });
@@ -587,8 +645,6 @@ export const deletePrompts = asyncHandler(
     }
   }
 );
-
-// Add this to naturalPromptController.ts
 
 export const getEnhancedNaturalPromptStats = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {

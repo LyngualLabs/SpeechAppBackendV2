@@ -3,6 +3,7 @@ import multer from "multer";
 import {
   addBulkPrompts,
   getPrompts,
+  checkDailyNaturalCount,
   uploadPrompt,
   getUserPrompts,
   getPromptsByUser,
@@ -21,6 +22,7 @@ router.use(protect);
 
 router.get("/stats", getEnhancedNaturalPromptStats);
 router.post("/bulk", upload.single("promptsFile"), addBulkPrompts);
+router.get("/check-daily-count", checkDailyNaturalCount);
 router.get("/get-prompt", getPrompts);
 router.get("/my-recordings", getUserPrompts);
 router.get("/user-recordings/:userId", getPromptsByUser);

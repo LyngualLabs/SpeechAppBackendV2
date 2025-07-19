@@ -40,6 +40,8 @@ export interface IUser extends Document {
   role: UserRole;
   dailyRegularCount: number;
   lastRegularCountDate: Date | null;
+  dailyNaturalCount: number;
+  lastNaturalCountDate: Date | null;
   personalInfo: IPersonalInfo;
   bankDetails: IBankDetails;
   languages: string[];

@@ -30,6 +30,15 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    dailyNaturalCount: {
+      type: Number,
+      default: 0,
+    },
+    lastNaturalCountDate: {
+      type: Date,
+      default: null,
+    },
+    // Personal information
     personalInfo: {
       age: { type: Number },
       gender: { type: String },
