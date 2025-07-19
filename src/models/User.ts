@@ -38,6 +38,15 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    suspended: { type: Boolean, default: false },
+    updatedPersonalInfo: {
+      type: Boolean,
+      default: false,
+    },
+    signedWaiver: {
+      type: Boolean,
+      default: false,
+    },
     // Personal information
     personalInfo: {
       age: { type: Number },
