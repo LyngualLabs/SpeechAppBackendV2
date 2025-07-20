@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getMyDetails,
   getUsers,
   createUser,
   toggleUserSuspension,
@@ -13,6 +14,7 @@ const router = Router();
 
 router.use(protect);
 
+router.get("/my-details", getMyDetails);
 router.get("/all-users", getUsers);
 router.post("/", createUser);
 router.put("/toggle-suspension/:userId", toggleUserSuspension);
