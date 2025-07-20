@@ -906,7 +906,7 @@ export const getVerifiedPromptsByUser = asyncHandler(
       })
         .populate({
           path: "prompt",
-          select: "text_id prompt emotions domain language_tags",
+          select: "prompt_id prompt emotions domain language_tags",
         })
         .sort({ createdAt: -1 }) // Most recent first
         .skip(skip)
@@ -943,7 +943,7 @@ export const getVerifiedPromptsByUser = asyncHandler(
         createdAt: recording.createdAt,
         prompt: {
           id: (recording.prompt as any)?._id,
-          text_id: (recording.prompt as any)?.text_id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
           prompt: (recording.prompt as any)?.prompt,
           emotions: (recording.prompt as any)?.emotions,
           domain: (recording.prompt as any)?.domain,
@@ -1012,7 +1012,7 @@ export const getUnverifiedPromptsByUser = asyncHandler(
       })
         .populate({
           path: "prompt",
-          select: "text_id prompt emotions domain language_tags",
+          select: "prompt_id prompt emotions domain language_tags",
         })
         .sort({ createdAt: -1 }) // Most recent first
         .skip(skip)
@@ -1049,7 +1049,7 @@ export const getUnverifiedPromptsByUser = asyncHandler(
         createdAt: recording.createdAt,
         prompt: {
           id: (recording.prompt as any)?._id,
-          text_id: (recording.prompt as any)?.text_id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
           prompt: (recording.prompt as any)?.prompt,
           emotions: (recording.prompt as any)?.emotions,
           domain: (recording.prompt as any)?.domain,
