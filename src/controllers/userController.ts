@@ -16,22 +16,26 @@ export const getMyDetails = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?._id;
-      
+
       if (!userId) {
         res.status(401).json({ message: "Not authorized" });
         return;
       }
-      
-      const user = await User.findById(userId).select('-password');
-      
+
+      const user = await User.findById(userId).select("-password");
+
       if (!user) {
         res.status(404).json({ message: "User not found" });
         return;
       }
-      
-      const regularRecordingsCount = await RegularRecording.countDocuments({ user: userId });
-      const naturalRecordingsCount = await NaturalRecording.countDocuments({ user: userId });
-      
+
+      const regularRecordingsCount = await RegularRecording.countDocuments({
+        user: userId,
+      });
+      const naturalRecordingsCount = await NaturalRecording.countDocuments({
+        user: userId,
+      });
+
       res.status(200).json({
         success: true,
         data: {
@@ -42,6 +46,7 @@ export const getMyDetails = asyncHandler(
           suspended: user.suspended,
           updatedPersonalInfo: user.updatedPersonalInfo,
           signedWaiver: user.signedWaiver,
+          emailVerified: user.emailVerification?.isVerified || false,
           personalInfo: user.personalInfo,
           bankDetails: user.bankDetails,
           languages: user.languages,
@@ -49,8 +54,8 @@ export const getMyDetails = asyncHandler(
           dailyNaturalCount: user.dailyNaturalCount,
           regularRecordingsCount,
           naturalRecordingsCount,
-          totalRecordingsCount: regularRecordingsCount + naturalRecordingsCount
-        }
+          totalRecordingsCount: regularRecordingsCount + naturalRecordingsCount,
+        },
       });
     } catch (err) {
       console.error("Error fetching user details:", err);
@@ -89,11 +94,11 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
           "personalInfo.gender": 1,
           regularRecordingsCount: { $size: "$regularRecordings" },
           naturalRecordingsCount: { $size: "$naturalRecordings" },
-          totalRecordingsCount: { 
+          totalRecordingsCount: {
             $add: [
-              { $size: "$regularRecordings" }, 
-              { $size: "$naturalRecordings" }
-            ] 
+              { $size: "$regularRecordings" },
+              { $size: "$naturalRecordings" },
+            ],
           },
           _id: 0,
         },
