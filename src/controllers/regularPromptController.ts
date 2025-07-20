@@ -141,11 +141,10 @@ export const getPrompts = asyncHandler(
         success: true,
         data: {
           id: randomPrompt._id,
-          text_id: randomPrompt.text_id,
           prompt: randomPrompt.prompt,
           emotions: randomPrompt.emotions,
           domain: randomPrompt.domain,
-          language_tags: randomPrompt.language_tags,
+       
         },
       });
     } catch (error) {
@@ -330,19 +329,6 @@ export const uploadPrompt = asyncHandler(
       res.status(201).json({
         success: true,
         message: "Recording uploaded successfully",
-        data: {
-          recording: {
-            id: newRecording._id,
-            audioUrl: publicUrl,
-            prompt: {
-              text_id: prompt.text_id,
-              prompt: prompt.prompt,
-              emotions: prompt.emotions,
-              domain: prompt.domain,
-            },
-            createdAt: newRecording.createdAt,
-          },
-        },
       });
     } catch (error) {
       console.error("Upload error:", error);
