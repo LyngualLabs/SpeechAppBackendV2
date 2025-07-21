@@ -22,6 +22,32 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["super-admin", "admin", "user"],
     },
+    dailyRegularCount: {
+      type: Number,
+      default: 0,
+    },
+    lastRegularCountDate: {
+      type: Date,
+      default: null,
+    },
+    dailyNaturalCount: {
+      type: Number,
+      default: 0,
+    },
+    lastNaturalCountDate: {
+      type: Date,
+      default: null,
+    },
+    suspended: { type: Boolean, default: false },
+    updatedPersonalInfo: {
+      type: Boolean,
+      default: false,
+    },
+    signedWaiver: {
+      type: Boolean,
+      default: false,
+    },
+    // Personal information
     personalInfo: {
       age: { type: Number },
       gender: { type: String },

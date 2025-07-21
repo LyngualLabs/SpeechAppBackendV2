@@ -38,6 +38,13 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: UserRole;
+  dailyRegularCount: number;
+  lastRegularCountDate: Date | null;
+  dailyNaturalCount: number;
+  lastNaturalCountDate: Date | null;
+  suspended: boolean;
+  updatedPersonalInfo: boolean;
+  signedWaiver: boolean;
   personalInfo: IPersonalInfo;
   bankDetails: IBankDetails;
   languages: string[];

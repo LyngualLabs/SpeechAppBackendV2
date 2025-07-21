@@ -13,14 +13,9 @@ export const protect = asyncHandler(
 
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.split(" ")[1];
-        // console.log("auth header:", authHeader);
-        console.log("Token received Header 2:", token + "...22");
       }
-
-      // If no token in header, try to get from cookies
       if (!token && req.cookies && req.cookies.token) {
         token = req.cookies.token;
-        console.log("Token received from cookies:", token + "...11");
       }
 
       if (!token) {
