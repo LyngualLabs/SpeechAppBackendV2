@@ -6,6 +6,8 @@ import {
   checkDailyRegularCount,
   uploadPrompt,
   getUserPrompts,
+  getMyVerifiedPrompts,
+  getMyUnverifiedPrompts,
   getPromptsByUser,
   getVerifiedPromptsByUser,
   getUnverifiedPromptsByUser,
@@ -28,6 +30,8 @@ router.get("/get-prompt", getPrompts);
 router.get("/check-daily-count", checkDailyRegularCount);
 router.get("/get-prompt/:id", getPromptById);
 router.get("/my-recordings", getUserPrompts);
+router.get("/my-verified-recordings", getMyVerifiedPrompts);
+router.get("/my-unverified-recordings", getMyUnverifiedPrompts);
 router.get("/user-recordings/:userId", getPromptsByUser);
 router.get("/verified-recordings/:userId", getVerifiedPromptsByUser);
 router.get("/unverified-recordings/:userId", getUnverifiedPromptsByUser);
