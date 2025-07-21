@@ -869,7 +869,7 @@ export const getVerifiedPromptsByUser = asyncHandler(
       })
         .populate({
           path: "prompt",
-          select: "prompt",
+          select: "prompt prompt_id",
         })
         .sort({ createdAt: -1 }) // Most recent first
         .skip(skip)
@@ -974,7 +974,7 @@ export const getUnverifiedPromptsByUser = asyncHandler(
       })
         .populate({
           path: "prompt",
-          select: "prompt",
+          select: "prompt prompt_id",
         })
         .sort({ createdAt: -1 }) // Most recent first
         .skip(skip)

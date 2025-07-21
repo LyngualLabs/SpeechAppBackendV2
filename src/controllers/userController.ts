@@ -64,7 +64,6 @@ export const getMyDetails = asyncHandler(
   }
 );
 
-// Get all users with recording count using aggregation
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const users = await User.aggregate([
@@ -111,7 +110,6 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Create a new user
 export const createUser = async (
   req: Request,
   res: Response
