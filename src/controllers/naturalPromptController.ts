@@ -837,6 +837,196 @@ export const getEnhancedNaturalPromptStats = asyncHandler(
   }
 );
 
+export const getMyVerifiedPrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?._id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of verified recordings for this user
+      const totalCount = await NaturalRecording.countDocuments({
+        user: userId,
+        isVerified: true,
+      });
+
+      // Get user's verified recordings with pagination
+      const userRecordings = await NaturalRecording.find({
+        user: userId,
+        isVerified: true,
+      })
+        .populate({
+          path: "prompt",
+          select: "prompt prompt_id",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: "No verified recordings found",
+          data: {
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0,
+            },
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
+          prompt: (recording.prompt as any)?.prompt,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching verified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
+export const getMyUnverifiedPrompts = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?._id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    try {
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Get total count of unverified recordings for this user
+      const totalCount = await NaturalRecording.countDocuments({
+        user: userId,
+        isVerified: false,
+      });
+
+      // Get user's unverified recordings with pagination
+      const userRecordings = await NaturalRecording.find({
+        user: userId,
+        isVerified: false,
+      })
+        .populate({
+          path: "prompt",
+          select: "prompt prompt_id",
+        })
+        .sort({ createdAt: -1 }) // Most recent first
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      if (!userRecordings.length) {
+        res.status(200).json({
+          success: true,
+          message: "No unverified recordings found",
+          data: {
+            recordings: [],
+            totalCount: 0,
+            pagination: {
+              total: 0,
+              page,
+              limit,
+              pages: 0,
+            },
+          },
+        });
+        return;
+      }
+
+      const formattedRecordings = userRecordings.map((recording) => ({
+        id: recording._id,
+        audioUrl: recording.audioUrl,
+        isVerified: recording.isVerified,
+        prompt_answer: recording.prompt_answer,
+        createdAt: recording.createdAt,
+        prompt: {
+          id: (recording.prompt as any)?._id,
+          prompt_id: (recording.prompt as any)?.prompt_id,
+          prompt: (recording.prompt as any)?.prompt,
+        },
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          recordings: formattedRecordings,
+          totalCount,
+          pagination: {
+            total: totalCount,
+            page,
+            limit,
+            pages: totalPages,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching unverified user prompts:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Server error",
+      });
+    }
+  }
+);
+
 export const getVerifiedPromptsByUser = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const { userId } = req.params;
