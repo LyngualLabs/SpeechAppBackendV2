@@ -165,8 +165,11 @@ export const getUserById = asyncHandler(
           role: user.role,
           suspended: user.suspended,
           recordingStats: {
-            totalRecordings: user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
-            totalDeleted: user.recordCounts?.deletedRegular + user.recordCounts?.deletedNatural,
+            totalRecordings:
+              user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
+            totalDeleted:
+              user.recordCounts?.deletedRegular +
+              user.recordCounts?.deletedNatural,
             currentRecordings: regularRecordingsCount + naturalRecordingsCount,
             totalVerified: verifiedRegularCount + verifiedNaturalCount,
           },
