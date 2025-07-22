@@ -51,6 +51,8 @@ export interface IUser extends Document {
     dailyNatural: number;
     deletedRegular: number;
     deletedNatural: number;
+    lastRegularCountDate: Date | null;
+    lastNaturalCountDate: Date | null;
   };
   suspended: boolean;
   updatedPersonalInfo: boolean;

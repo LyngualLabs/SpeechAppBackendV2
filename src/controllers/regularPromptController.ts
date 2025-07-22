@@ -174,33 +174,40 @@ export const checkDailyRegularCount = asyncHandler(
         return;
       }
 
-      const lastResetDate = user.lastRegularCountDate
-        ? new Date(user.lastRegularCountDate)
+      // Access lastRegularCountDate from the recordCounts object
+      const lastResetDate = user.recordCounts?.lastRegularCountDate
+        ? new Date(user.recordCounts.lastRegularCountDate)
         : null;
 
       if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        // Reset the daily count using the nested structure
         await User.findByIdAndUpdate(userId, {
-          dailyRegularCount: 0,
-          lastRegularCountDate: today,
+          $set: {
+            "recordCounts.dailyRegular": 0,
+            "recordCounts.lastRegularCountDate": today
+          }
         });
 
         res.status(200).json({
           success: true,
-          message: "Daily count reset",
-          data: { dailyRegularCount: 0, lastReset: today },
+          message: "Daily regular count reset",
+          data: { 
+            dailyRegularCount: 0, 
+            lastReset: today,
+          },
         });
       } else {
         res.status(200).json({
           success: true,
-          message: "Daily count retrieved",
+          message: "Daily regular count retrieved",
           data: {
-            dailyRegularCount: user.dailyRegularCount,
-            lastReset: user.lastRegularCountDate,
+            dailyRegularCount: user.recordCounts?.dailyRegular || 0,
+            lastReset: user.recordCounts?.lastRegularCountDate,
           },
         });
       }
     } catch (error) {
-      console.error("Error checking daily count:", error);
+      console.error("Error checking daily regular count:", error);
       res.status(500).json({
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
