@@ -158,28 +158,35 @@ export const checkDailyNaturalCount = asyncHandler(
         return;
       }
 
-      const lastResetDate = user.lastNaturalCountDate
-        ? new Date(user.lastNaturalCountDate)
+      // Access lastNaturalCountDate from the recordCounts object
+      const lastResetDate = user.recordCounts?.lastNaturalCountDate
+        ? new Date(user.recordCounts.lastNaturalCountDate)
         : null;
 
       if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        // Reset the daily count using the nested structure
         await User.findByIdAndUpdate(userId, {
-          dailyNaturalCount: 0,
-          lastNaturalCountDate: today,
+          $set: {
+            "recordCounts.dailyNatural": 0,
+            "recordCounts.lastNaturalCountDate": today
+          }
         });
 
         res.status(200).json({
           success: true,
           message: "Daily natural count reset",
-          data: { dailyNaturalCount: 0, lastReset: today },
+          data: { 
+            dailyNaturalCount: 0, 
+            lastReset: today,
+          },
         });
       } else {
         res.status(200).json({
           success: true,
           message: "Daily natural count retrieved",
           data: {
-            dailyNaturalCount: user.dailyNaturalCount,
-            lastReset: user.lastNaturalCountDate,
+            dailyNaturalCount: user.recordCounts?.dailyNatural || 0,
+            lastReset: user.recordCounts?.lastNaturalCountDate,
           },
         });
       }
