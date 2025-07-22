@@ -662,6 +662,10 @@ export const deletePrompts = asyncHandler(
 
       const deletedCount = deleteResult.deletedCount;
 
+      await User.findByIdAndUpdate(userId, {
+        $inc: { deletedRegularRecordingsCount: deletedCount },
+      });
+
       // Update prompt userCounts (decrease by number of deleted recordings)
       if (promptIds.length > 0) {
         // For each unique prompt, decrease userCount

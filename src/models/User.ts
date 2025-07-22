@@ -71,6 +71,14 @@ const UserSchema = new Schema<IUser>(
       code: String,
       expiresAt: Date,
     },
+    deletedRegularRecordingsCount: {
+      type: Number,
+      default: 0,
+    },
+    deletedNaturalRecordingsCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
