@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
+import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
 import { RegularRecording } from "../models/RegularRecordings";
 import { NaturalRecording } from "../models/NaturalRecordings";
@@ -105,6 +106,81 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
+export const getUserById = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          message: "User ID is required",
+        });
+        return;
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid user ID format",
+        });
+        return;
+      }
+
+      const user = await User.findById(userId).select("-password");
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+        return;
+      }
+
+      const regularRecordingsCount = await RegularRecording.countDocuments({
+        user: userId,
+      });
+
+      const naturalRecordingsCount = await NaturalRecording.countDocuments({
+        user: userId,
+      });
+
+      const verifiedRegularCount = await RegularRecording.countDocuments({
+        user: userId,
+        isVerified: true,
+      });
+
+      const verifiedNaturalCount = await NaturalRecording.countDocuments({
+        user: userId,
+        isVerified: true,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          id: user._id,
+          fullname: user.fullname,
+          email: user.email,
+          role: user.role,
+          recordingStats: {
+            totalRecordings: user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
+            totalDeleted: user.recordCounts?.deletedRegular + user.recordCounts?.deletedNatural,
+            currentRecordings: regularRecordingsCount + naturalRecordingsCount,
+            totalVerified: verifiedRegularCount + verifiedNaturalCount,
+          },
+        },
+      });
+    } catch (err) {
+      console.error("Error fetching user details:", err);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch user details",
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+);
 
 export const createUser = async (
   req: Request,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getMyDetails,
   getUsers,
+  getUserById,
   createUser,
   toggleUserSuspension,
   signWaiver,
@@ -16,6 +17,7 @@ router.use(protect);
 
 router.get("/my-details", getMyDetails);
 router.get("/all-users", getUsers);
+router.get("/:userId", getUserById);
 router.post("/", createUser);
 router.put("/toggle-suspension/:userId", toggleUserSuspension);
 router.post("/sign-waiver", signWaiver);
