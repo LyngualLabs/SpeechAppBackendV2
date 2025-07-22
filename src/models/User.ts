@@ -38,6 +38,16 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    recordCounts: {
+      totalRegular: { type: Number, default: 0 },
+      totalNatural: { type: Number, default: 0 },
+      dailyRegular: { type: Number, default: 0 },
+      dailyNatural: { type: Number, default: 0 },
+      deletedRegular: { type: Number, default: 0 },
+      deletedNatural: { type: Number, default: 0 },
+      lastRegularCountDate: { type: Date, default: null },
+      lastNaturalCountDate: { type: Date, default: null },
+    },
     suspended: { type: Boolean, default: false },
     updatedPersonalInfo: {
       type: Boolean,
