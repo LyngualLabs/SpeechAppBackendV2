@@ -50,11 +50,7 @@ export const getMyDetails = asyncHandler(
           personalInfo: user.personalInfo,
           bankDetails: user.bankDetails,
           languages: user.languages,
-          dailyRegularCount: user.dailyRegularCount,
-          dailyNaturalCount: user.dailyNaturalCount,
-          regularRecordingsCount,
-          naturalRecordingsCount,
-          totalRecordingsCount: regularRecordingsCount + naturalRecordingsCount,
+          recordCounts: user.recordCounts,
         },
       });
     } catch (err) {
