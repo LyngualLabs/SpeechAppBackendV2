@@ -309,6 +309,7 @@ export const uploadPrompt = asyncHandler(
       await User.findByIdAndUpdate(req.user?._id, {
         $inc: {
           "recordCounts.dailyRegular": 1,
+          "recordCounts.totalRegular": 1,
         },
         $set: { "recordCounts.lastRegularCountDate": new Date() },
       });
