@@ -22,21 +22,15 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["super-admin", "admin", "user"],
     },
-    dailyRegularCount: {
-      type: Number,
-      default: 0,
-    },
-    lastRegularCountDate: {
-      type: Date,
-      default: null,
-    },
-    dailyNaturalCount: {
-      type: Number,
-      default: 0,
-    },
-    lastNaturalCountDate: {
-      type: Date,
-      default: null,
+    recordCounts: {
+      totalRegular: { type: Number, default: 0 },
+      totalNatural: { type: Number, default: 0 },
+      dailyRegular: { type: Number, default: 0 },
+      dailyNatural: { type: Number, default: 0 },
+      deletedRegular: { type: Number, default: 0 },
+      deletedNatural: { type: Number, default: 0 },
+      lastRegularCountDate: { type: Date, default: null },
+      lastNaturalCountDate: { type: Date, default: null },
     },
     suspended: { type: Boolean, default: false },
     updatedPersonalInfo: {
@@ -47,7 +41,6 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
-    // Personal information
     personalInfo: {
       age: { type: Number },
       gender: { type: String },
@@ -92,7 +85,6 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-// Add method to compare passwords
 UserSchema.methods.matchPassword = async function (
   enteredPassword: string
 ): Promise<boolean> {

@@ -156,6 +156,8 @@ export const getPrompts = asyncHandler(
   }
 );
 
+
+
 export const checkDailyRegularCount = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -174,33 +176,40 @@ export const checkDailyRegularCount = asyncHandler(
         return;
       }
 
-      const lastResetDate = user.lastRegularCountDate
-        ? new Date(user.lastRegularCountDate)
+      // Access lastRegularCountDate from the recordCounts object
+      const lastResetDate = user.recordCounts?.lastRegularCountDate
+        ? new Date(user.recordCounts.lastRegularCountDate)
         : null;
 
       if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        // Reset the daily count using the nested structure
         await User.findByIdAndUpdate(userId, {
-          dailyRegularCount: 0,
-          lastRegularCountDate: today,
+          $set: {
+            "recordCounts.dailyRegular": 0,
+            "recordCounts.lastRegularCountDate": today
+          }
         });
 
         res.status(200).json({
           success: true,
-          message: "Daily count reset",
-          data: { dailyRegularCount: 0, lastReset: today },
+          message: "Daily regular count reset",
+          data: { 
+            dailyRegularCount: 0, 
+            lastReset: today,
+          },
         });
       } else {
         res.status(200).json({
           success: true,
-          message: "Daily count retrieved",
+          message: "Daily regular count retrieved",
           data: {
-            dailyRegularCount: user.dailyRegularCount,
-            lastReset: user.lastRegularCountDate,
+            dailyRegularCount: user.recordCounts?.dailyRegular || 0,
+            lastReset: user.recordCounts?.lastRegularCountDate,
           },
         });
       }
     } catch (error) {
-      console.error("Error checking daily count:", error);
+      console.error("Error checking daily regular count:", error);
       res.status(500).json({
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
@@ -217,7 +226,6 @@ export const uploadPrompt = asyncHandler(
     const { prompt_id } = req.body;
 
     try {
-      // 1. Validate required fields
       if (!prompt_id) {
         res.status(400).json({ error: "Prompt ID is required" });
         return;
@@ -228,20 +236,17 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 2. Validate prompt_id format
       if (!mongoose.Types.ObjectId.isValid(prompt_id)) {
         res.status(400).json({ error: "Invalid prompt ID format" });
         return;
       }
 
-      // 3. Find the prompt
       const prompt = await RegularPrompt.findById(prompt_id);
       if (!prompt) {
         res.status(404).json({ error: "Prompt not found" });
         return;
       }
 
-      // 4. Check if prompt is active and has capacity
       if (!prompt.active) {
         res.status(400).json({ error: "This prompt is no longer active" });
         return;
@@ -254,7 +259,6 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 5. Check if user already recorded this prompt
       const existingRecording = await RegularRecording.findOne({
         user: req.user?._id,
         prompt: prompt_id,
@@ -267,7 +271,6 @@ export const uploadPrompt = asyncHandler(
         return;
       }
 
-      // 6. Upload file to Firebase Storage
       const file = req.file;
       const userFullName =
         req.user?.fullname?.replace(/\s+/g, "_") || "Unknown";
@@ -279,25 +282,20 @@ export const uploadPrompt = asyncHandler(
         prompt.text_id
       }_${Date.now()}_${file.originalname}`;
 
-      // const storageRef = bucket.file(uniqueFileName);
       const storageRef = admin.storage().bucket().file(uniqueFileName);
 
-      // Upload the file
       await storageRef.save(file.buffer, {
         metadata: {
           contentType: file.mimetype,
         },
       });
 
-      // Make the file publicly accessible
       await storageRef.makePublic();
 
-      // Generate the public URL
       const publicUrl = `https://storage.googleapis.com/${
         admin.storage().bucket().name
       }/${uniqueFileName}`;
 
-      // 7. Create recording entry
       const newRecording = new RegularRecording({
         user: req.user?._id,
         prompt: prompt_id,
@@ -307,24 +305,24 @@ export const uploadPrompt = asyncHandler(
 
       await newRecording.save();
 
-      // 8. Update prompt userCount
       const updatedPrompt = await RegularPrompt.findByIdAndUpdate(
         prompt_id,
         { $inc: { userCount: 1 } },
         { new: true }
       );
 
-      // 9. If prompt reached max users, deactivate it
       if (updatedPrompt && updatedPrompt.userCount >= updatedPrompt.maxUsers) {
         await RegularPrompt.findByIdAndUpdate(prompt_id, { active: false });
       }
 
       await User.findByIdAndUpdate(req.user?._id, {
-        $inc: { dailyRegularCount: 1 },
-        $set: { lastRegularCountDate: new Date() },
+        $inc: {
+          "recordCounts.dailyRegular": 1,
+          "recordCounts.totalRegular": 1,
+        },
+        $set: { "recordCounts.lastRegularCountDate": new Date() },
       });
 
-      // 10. Return success response
       res.status(201).json({
         success: true,
         message: "Recording uploaded successfully",
@@ -615,7 +613,6 @@ export const deletePrompts = asyncHandler(
     const { userId } = req.params;
     let { recordingIds } = req.body;
 
-    // Convert single string to array for uniform processing
     if (typeof recordingIds === "string") {
       recordingIds = [recordingIds];
     }
@@ -628,14 +625,12 @@ export const deletePrompts = asyncHandler(
     }
 
     try {
-      // Find the user
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({ error: "User not found." });
         return;
       }
 
-      // Find recordings that belong to this user
       const recordings = await RegularRecording.find({
         _id: { $in: recordingIds },
         user: userId,
@@ -648,13 +643,11 @@ export const deletePrompts = asyncHandler(
         return;
       }
 
-      // Get prompt IDs to update their userCount
       const promptIds = recordings
         .map((r) => (r.prompt as any)?._id)
         .filter(Boolean);
       const recordingIdsToDelete = recordings.map((r) => r._id);
 
-      // Delete the recordings
       const deleteResult = await RegularRecording.deleteMany({
         _id: { $in: recordingIdsToDelete },
         user: userId,
@@ -662,20 +655,21 @@ export const deletePrompts = asyncHandler(
 
       const deletedCount = deleteResult.deletedCount;
 
-      // Update prompt userCounts (decrease by number of deleted recordings)
+      await User.findByIdAndUpdate(userId, {
+        $inc: { "recordCounts.deletedRegular": deletedCount },
+      });
+
       if (promptIds.length > 0) {
-        // For each unique prompt, decrease userCount
         const promptCountMap = new Map();
         promptIds.forEach((promptId) => {
           const key = promptId.toString();
           promptCountMap.set(key, (promptCountMap.get(key) || 0) + 1);
         });
 
-        // Update each prompt's userCount
         for (const [promptId, count] of promptCountMap) {
           await RegularPrompt.findByIdAndUpdate(promptId, {
             $inc: { userCount: -count },
-            $set: { active: true }, // Reactivate prompt if it was deactivated
+            $set: { active: true },
           });
         }
       }
@@ -698,7 +692,6 @@ export const deletePrompts = asyncHandler(
         }
       }
 
-      // Get deleted recording details for response
       const deletedRecordings = recordings.map((r) => ({
         id: r._id,
         promptText:
@@ -711,12 +704,6 @@ export const deletePrompts = asyncHandler(
         success: true,
         data: {
           deletedCount,
-          deletedRecordings: deletedRecordings.map((r) => ({
-            recordingId: r.id,
-            promptText: r.promptText,
-          })),
-          totalRequested: recordingIds.length,
-          notFound: recordingIds.length - recordings.length,
         },
       });
     } catch (error) {

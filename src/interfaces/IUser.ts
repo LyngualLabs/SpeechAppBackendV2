@@ -42,6 +42,18 @@ export interface IUser extends Document {
   lastRegularCountDate: Date | null;
   dailyNaturalCount: number;
   lastNaturalCountDate: Date | null;
+  deletedRegularRecordingsCount: number;
+  deletedNaturalRecordingsCount: number;
+  recordCounts: {
+    totalRegular: number;
+    totalNatural: number;
+    dailyRegular: number;
+    dailyNatural: number;
+    deletedRegular: number;
+    deletedNatural: number;
+    lastRegularCountDate: Date | null;
+    lastNaturalCountDate: Date | null;
+  };
   suspended: boolean;
   updatedPersonalInfo: boolean;
   signedWaiver: boolean;

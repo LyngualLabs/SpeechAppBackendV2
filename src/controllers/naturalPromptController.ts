@@ -158,28 +158,35 @@ export const checkDailyNaturalCount = asyncHandler(
         return;
       }
 
-      const lastResetDate = user.lastNaturalCountDate
-        ? new Date(user.lastNaturalCountDate)
+      // Access lastNaturalCountDate from the recordCounts object
+      const lastResetDate = user.recordCounts?.lastNaturalCountDate
+        ? new Date(user.recordCounts.lastNaturalCountDate)
         : null;
 
       if (!lastResetDate || lastResetDate.getTime() < today.getTime()) {
+        // Reset the daily count using the nested structure
         await User.findByIdAndUpdate(userId, {
-          dailyNaturalCount: 0,
-          lastNaturalCountDate: today,
+          $set: {
+            "recordCounts.dailyNatural": 0,
+            "recordCounts.lastNaturalCountDate": today
+          }
         });
 
         res.status(200).json({
           success: true,
           message: "Daily natural count reset",
-          data: { dailyNaturalCount: 0, lastReset: today },
+          data: { 
+            dailyNaturalCount: 0, 
+            lastReset: today,
+          },
         });
       } else {
         res.status(200).json({
           success: true,
           message: "Daily natural count retrieved",
           data: {
-            dailyNaturalCount: user.dailyNaturalCount,
-            lastReset: user.lastNaturalCountDate,
+            dailyNaturalCount: user.recordCounts?.dailyNatural || 0,
+            lastReset: user.recordCounts?.lastNaturalCountDate,
           },
         });
       }
@@ -292,14 +299,17 @@ export const uploadPrompt = asyncHandler(
         { new: true }
       );
 
-      await User.findByIdAndUpdate(req.user?._id, {
-        $inc: { dailyNaturalCount: 1 },
-        $set: { lastNaturalCountDate: new Date() },
-      });
-
       if (updatedPrompt && updatedPrompt.userCount >= updatedPrompt.maxUsers) {
         await NaturalPrompt.findByIdAndUpdate(prompt_id, { active: false });
       }
+
+      await User.findByIdAndUpdate(req.user?._id, {
+        $inc: {
+          "recordCounts.dailyNatural": 1,
+          "recordCounts.totalNatural": 1,
+        },
+        $set: { "recordCounts.lastNaturalCountDate": new Date() },
+      });
 
       res.status(201).json({
         success: true,
@@ -537,7 +547,6 @@ export const deletePrompts = asyncHandler(
     const { userId } = req.params;
     let { recordingIds } = req.body;
 
-    // Convert single string to array for uniform processing
     if (typeof recordingIds === "string") {
       recordingIds = [recordingIds];
     }
@@ -550,14 +559,12 @@ export const deletePrompts = asyncHandler(
     }
 
     try {
-      // Find the user
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({ error: "User not found." });
         return;
       }
 
-      // Find recordings that belong to this user
       const recordings = await NaturalRecording.find({
         _id: { $in: recordingIds },
         user: userId,
@@ -570,13 +577,11 @@ export const deletePrompts = asyncHandler(
         return;
       }
 
-      // Get prompt IDs to update their userCount
       const promptIds = recordings
         .map((r) => (r.prompt as any)?._id)
         .filter(Boolean);
       const recordingIdsToDelete = recordings.map((r) => r._id);
 
-      // Delete the recordings
       const deleteResult = await NaturalRecording.deleteMany({
         _id: { $in: recordingIdsToDelete },
         user: userId,
@@ -584,20 +589,21 @@ export const deletePrompts = asyncHandler(
 
       const deletedCount = deleteResult.deletedCount;
 
-      // Update prompt userCounts (decrease by number of deleted recordings)
+      await User.findByIdAndUpdate(userId, {
+        $inc: { "recordCounts.deletedNatural": deletedCount },
+      });
+
       if (promptIds.length > 0) {
-        // For each unique prompt, decrease userCount
         const promptCountMap = new Map();
         promptIds.forEach((promptId) => {
           const key = promptId.toString();
           promptCountMap.set(key, (promptCountMap.get(key) || 0) + 1);
         });
 
-        // Update each prompt's userCount
         for (const [promptId, count] of promptCountMap) {
           await NaturalPrompt.findByIdAndUpdate(promptId, {
             $inc: { userCount: -count },
-            $set: { active: true }, // Reactivate prompt if it was deactivated
+            $set: { active: true },
           });
         }
       }
@@ -621,7 +627,6 @@ export const deletePrompts = asyncHandler(
         }
       }
 
-      // Get deleted recording details for response
       const deletedRecordings = recordings.map((r) => ({
         id: r._id,
         promptText: (r.prompt as any)?.prompt || "Unknown",
