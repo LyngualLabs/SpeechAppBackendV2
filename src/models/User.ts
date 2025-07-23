@@ -21,6 +21,7 @@ const UserSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: ["super-admin", "admin", "user"],
+      // default: "user",
     },
     recordCounts: {
       totalRegular: { type: Number, default: 0 },
