@@ -373,3 +373,79 @@ export const toggleAdminRole = asyncHandler(
     });
   }
 );
+
+export const exportAllUsersData = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get all verified users with selected fields
+      const users = await User.find(
+        { "emailVerification.isVerified": true },
+        {
+          fullname: 1,
+          email: 1,
+          personalInfo: 1,
+          languages: 1,
+          recordCounts: 1
+        }
+      ).lean();
+
+      // For each user, get their recordings
+      const exportData = await Promise.all(
+        users.map(async (user) => {
+          // Get regular recordings count
+          const regularRecordings = await RegularRecording.find(
+            { user: user._id },
+            { audioUrl: 1, isVerified: 1, createdAt: 1, prompt: 1 }
+          ).populate("prompt", "prompt emotions domain");
+
+          // Get natural recordings count
+          const naturalRecordings = await NaturalRecording.find(
+            { user: user._id },
+            { audioUrl: 1, isVerified: 1, prompt_answer: 1, createdAt: 1, prompt: 1 }
+          ).populate("prompt", "prompt");
+
+          return {
+            id: user._id,
+            fullname: user.fullname,
+            email: user.email,
+            gender: user.personalInfo?.gender || "Not specified",
+            age: user.personalInfo?.age || "Not specified",
+            nationality: user.personalInfo?.nationality || "Not specified",
+            languages: user.languages || [],
+            recordCounts: user.recordCounts || {},
+            regularPrompts: regularRecordings.map(rec => ({
+              id: rec._id,
+              audioUrl: rec.audioUrl,
+              isVerified: rec.isVerified,
+              createdAt: rec.createdAt,
+              promptText: (rec.prompt as any)?.prompt || "Unknown prompt",
+              emotions: (rec.prompt as any)?.emotions || [],
+              domain: (rec.prompt as any)?.domain || "Unknown"
+            })),
+            naturalPrompts: naturalRecordings.map(rec => ({
+              id: rec._id,
+              audioUrl: rec.audioUrl,
+              isVerified: rec.isVerified,
+              createdAt: rec.createdAt,
+              promptText: (rec.prompt as any)?.prompt || "Unknown prompt",
+              promptAnswer: rec.prompt_answer || ""
+            }))
+          };
+        })
+      );
+
+      res.status(200).json({
+        success: true,
+        count: exportData.length,
+        data: exportData
+      });
+    } catch (error) {
+      console.error("Error exporting user data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to export user data",
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  }
+);

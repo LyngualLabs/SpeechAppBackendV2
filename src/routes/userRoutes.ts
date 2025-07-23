@@ -8,6 +8,7 @@ import {
   signWaiver,
   updateDetails,
   toggleAdminRole,
+  exportAllUsersData,
 } from "../controllers/userController";
 import { protect } from "../middleware/authMiddleware";
 
@@ -23,5 +24,5 @@ router.put("/toggle-suspension/:userId", toggleUserSuspension);
 router.post("/sign-waiver", signWaiver);
 router.put("/update-details", updateDetails);
 router.put("/toggle-admin/:userId", toggleAdminRole);
-
+router.get("/export-all-data", exportAllUsersData);
 export default router;

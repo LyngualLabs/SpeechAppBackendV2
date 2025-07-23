@@ -52,6 +52,7 @@ export const signUp = asyncHandler(
         fullname,
         email,
         password,
+        role: "user", // Default role
       });
 
       const responseData = {
