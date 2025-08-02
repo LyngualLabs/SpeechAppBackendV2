@@ -16,12 +16,11 @@ if (!admin.apps.length) {
   });
 }
 
-// Interface for uploaded prompt data
-
 interface IUploadedNaturalPrompt {
   text_id: string;
   text: string;
   prompt: string;
+  prompt_2: string;
   maxUsers?: number;
 }
 
@@ -59,10 +58,11 @@ export const addBulkPrompts = asyncHandler(
 
       const validPrompts = prompts
         .filter((prompt): prompt is IUploadedNaturalPrompt =>
-          Boolean(prompt.prompt)
+          Boolean(prompt.prompt && prompt.prompt_2)
         )
         .map((prompt, index) => ({
           prompt: prompt.prompt,
+          prompt_2: prompt.prompt_2,
           prompt_id: `${index + 1}-${prompts.length}`,
           maxUsers: prompt.maxUsers || 3,
           userCount: 0,
@@ -168,15 +168,15 @@ export const checkDailyNaturalCount = asyncHandler(
         await User.findByIdAndUpdate(userId, {
           $set: {
             "recordCounts.dailyNatural": 0,
-            "recordCounts.lastNaturalCountDate": today
-          }
+            "recordCounts.lastNaturalCountDate": today,
+          },
         });
 
         res.status(200).json({
           success: true,
           message: "Daily natural count reset",
-          data: { 
-            dailyNaturalCount: 0, 
+          data: {
+            dailyNaturalCount: 0,
             lastReset: today,
           },
         });
