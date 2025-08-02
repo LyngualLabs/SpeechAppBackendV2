@@ -109,7 +109,7 @@ export const getPrompts = asyncHandler(
       };
 
       const availablePrompts = await NaturalPrompt.find(query)
-        .select("text_id text prompt")
+        .select("text_id text prompt prompt_2")
         .lean();
 
       if (!availablePrompts.length) {
@@ -128,6 +128,7 @@ export const getPrompts = asyncHandler(
         data: {
           id: randomPrompt._id,
           prompt: randomPrompt.prompt,
+          prompt_2: randomPrompt.prompt_2,
         },
       });
     } catch (error) {
