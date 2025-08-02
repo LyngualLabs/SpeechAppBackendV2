@@ -164,6 +164,7 @@ export const getUserById = asyncHandler(
           email: user.email,
           role: user.role,
           suspended: user.suspended,
+          personalInfo: user.personalInfo,
           recordingStats: {
             totalRecordings:
               user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
