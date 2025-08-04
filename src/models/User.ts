@@ -49,6 +49,7 @@ const UserSchema = new Schema<IUser>(
       state: { type: String },
       phoneNumber: { type: String },
       occupation: { type: String },
+      dialect: { type: String },
     },
     bankDetails: {
       bankName: { type: String },

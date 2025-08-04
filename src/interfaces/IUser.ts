@@ -12,6 +12,7 @@ export interface IPersonalInfo {
   state: string;
   age: number;
   occupation: string;
+  dialect: string;
 }
 
 // Define bank details interface

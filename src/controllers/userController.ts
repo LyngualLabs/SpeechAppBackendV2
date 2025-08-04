@@ -165,6 +165,8 @@ export const getUserById = asyncHandler(
           role: user.role,
           suspended: user.suspended,
           personalInfo: user.personalInfo,
+          bankDetails: user.bankDetails,
+          languages: user.languages,
           recordingStats: {
             totalRecordings:
               user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
@@ -283,6 +285,7 @@ export const updateDetails = asyncHandler(
       state,
       age,
       occupation,
+      dialect,
       bankName,
       accountNumber,
       accountName,
@@ -313,6 +316,7 @@ export const updateDetails = asyncHandler(
       if (state !== undefined) user.personalInfo.state = state;
       if (age !== undefined) user.personalInfo.age = age;
       if (occupation !== undefined) user.personalInfo.occupation = occupation;
+      if (dialect !== undefined) user.personalInfo.dialect = dialect;
 
       if (bankName !== undefined) user.bankDetails.bankName = bankName;
       if (accountNumber !== undefined)
