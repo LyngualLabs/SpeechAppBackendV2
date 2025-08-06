@@ -59,6 +59,7 @@ export const addBulkPrompts = asyncHandler(
         });
       }
 
+      const existingPromptsCount = await RegularPrompt.countDocuments();
       // 3. Basic validation
       const validPrompts = prompts
         .filter((prompt): prompt is IUploadedPrompt =>
@@ -67,7 +68,7 @@ export const addBulkPrompts = asyncHandler(
         .map((prompt, index) => ({
           text_id: prompt.text_id,
           prompt: prompt.prompt,
-          prompt_id: `${index + 1}-${prompts.length}`,
+          prompt_id: `${existingPromptsCount + index + 1}`,
           emotions: prompt.emotions || "Neutral",
           language_tags: prompt.language_tags || [],
           domain: prompt.domain || "General",
@@ -156,8 +157,6 @@ export const getPrompts = asyncHandler(
   }
 );
 
-
-
 export const checkDailyRegularCount = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -186,15 +185,15 @@ export const checkDailyRegularCount = asyncHandler(
         await User.findByIdAndUpdate(userId, {
           $set: {
             "recordCounts.dailyRegular": 0,
-            "recordCounts.lastRegularCountDate": today
-          }
+            "recordCounts.lastRegularCountDate": today,
+          },
         });
 
         res.status(200).json({
           success: true,
           message: "Daily regular count reset",
-          data: { 
-            dailyRegularCount: 0, 
+          data: {
+            dailyRegularCount: 0,
             lastReset: today,
           },
         });

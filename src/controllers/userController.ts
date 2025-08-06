@@ -164,6 +164,9 @@ export const getUserById = asyncHandler(
           email: user.email,
           role: user.role,
           suspended: user.suspended,
+          personalInfo: user.personalInfo,
+          bankDetails: user.bankDetails,
+          languages: user.languages,
           recordingStats: {
             totalRecordings:
               user.recordCounts?.totalRegular + user.recordCounts?.totalNatural,
@@ -385,7 +388,7 @@ export const exportAllUsersData = asyncHandler(
           email: 1,
           personalInfo: 1,
           languages: 1,
-          recordCounts: 1
+          recordCounts: 1,
         }
       ).lean();
 
@@ -401,7 +404,13 @@ export const exportAllUsersData = asyncHandler(
           // Get natural recordings count
           const naturalRecordings = await NaturalRecording.find(
             { user: user._id },
-            { audioUrl: 1, isVerified: 1, prompt_answer: 1, createdAt: 1, prompt: 1 }
+            {
+              audioUrl: 1,
+              isVerified: 1,
+              prompt_answer: 1,
+              createdAt: 1,
+              prompt: 1,
+            }
           ).populate("prompt", "prompt");
 
           return {
@@ -413,23 +422,23 @@ export const exportAllUsersData = asyncHandler(
             nationality: user.personalInfo?.nationality || "Not specified",
             languages: user.languages || [],
             recordCounts: user.recordCounts || {},
-            regularPrompts: regularRecordings.map(rec => ({
+            regularPrompts: regularRecordings.map((rec) => ({
               id: rec._id,
               audioUrl: rec.audioUrl,
               isVerified: rec.isVerified,
               createdAt: rec.createdAt,
               promptText: (rec.prompt as any)?.prompt || "Unknown prompt",
               emotions: (rec.prompt as any)?.emotions || [],
-              domain: (rec.prompt as any)?.domain || "Unknown"
+              domain: (rec.prompt as any)?.domain || "Unknown",
             })),
-            naturalPrompts: naturalRecordings.map(rec => ({
+            naturalPrompts: naturalRecordings.map((rec) => ({
               id: rec._id,
               audioUrl: rec.audioUrl,
               isVerified: rec.isVerified,
               createdAt: rec.createdAt,
               promptText: (rec.prompt as any)?.prompt || "Unknown prompt",
-              promptAnswer: rec.prompt_answer || ""
-            }))
+              promptAnswer: rec.prompt_answer || "",
+            })),
           };
         })
       );
@@ -437,14 +446,14 @@ export const exportAllUsersData = asyncHandler(
       res.status(200).json({
         success: true,
         count: exportData.length,
-        data: exportData
+        data: exportData,
       });
     } catch (error) {
       console.error("Error exporting user data:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Failed to export user data",
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
