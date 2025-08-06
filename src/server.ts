@@ -22,7 +22,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://happy-smoke-0aaf65a10.1.azurestaticapps.net",
+      "https://nupe.lynguallabs.com",
       "https://www.ambitious-mushroom-0397fd710.6.azurestaticapps.net",
     ],
     credentials: true,
