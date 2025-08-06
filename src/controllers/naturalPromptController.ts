@@ -56,6 +56,8 @@ export const addBulkPrompts = asyncHandler(
         });
       }
 
+      const existingPromptsCount = await NaturalPrompt.countDocuments();
+
       const validPrompts = prompts
         .filter((prompt): prompt is IUploadedNaturalPrompt =>
           Boolean(prompt.prompt && prompt.prompt_2)
@@ -63,8 +65,8 @@ export const addBulkPrompts = asyncHandler(
         .map((prompt, index) => ({
           prompt: prompt.prompt,
           prompt_2: prompt.prompt_2,
-          prompt_id: `${index + 1}-${prompts.length}`,
-          maxUsers:  1,
+          prompt_id: `${existingPromptsCount + index + 1}`,
+          maxUsers: 1,
           userCount: 0,
           active: true,
         }));
