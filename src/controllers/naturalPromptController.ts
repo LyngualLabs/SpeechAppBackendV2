@@ -264,7 +264,7 @@ export const uploadPrompt = asyncHandler(
         req.user?.fullname?.replace(/\s+/g, "_") || "Unknown";
       const userId = req.user?._id;
       const nameSuffix = userFullName.slice(-4);
-      const folderName = "Natural_Prompts_V2";
+      const folderName = "Elatu_Nupe_Meta_1";
 
       const uniqueFileName = `${folderName}/${nameSuffix}_${userId}_${Date.now()}_${
         file.originalname
