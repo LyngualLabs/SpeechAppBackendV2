@@ -64,7 +64,7 @@ export const addBulkPrompts = asyncHandler(
           prompt: prompt.prompt,
           prompt_2: prompt.prompt_2,
           prompt_id: `${index + 1}-${prompts.length}`,
-          maxUsers: prompt.maxUsers || 3,
+          maxUsers:  1,
           userCount: 0,
           active: true,
         }));
