@@ -20,7 +20,7 @@ router.get("/my-details", getMyDetails);
 router.get("/all-users", getUsers);
 router.get("/single-user/:userId", getUserById);
 router.post("/", createUser);
-router.put("/toggle-suspension/:userId", toggleUserSuspension);
+router.put("/toggle-suspend/:userId", toggleUserSuspension);
 router.post("/sign-waiver", signWaiver);
 router.put("/update-details", updateDetails);
 router.put("/toggle-admin/:userId", toggleAdminRole);
