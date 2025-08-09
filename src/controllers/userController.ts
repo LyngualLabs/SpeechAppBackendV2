@@ -458,3 +458,104 @@ export const exportAllUsersData = asyncHandler(
     }
   }
 );
+
+export const importUsers = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { users } = req.body;
+      
+      if (!Array.isArray(users) || users.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "Please provide an array of users to import"
+        });
+        return;
+      }
+      
+      // Validate the user data
+      const validUsers = users.filter(user => 
+        user.fullname && 
+        user.email && 
+        user.password &&
+        typeof user.email === 'string' && 
+        typeof user.fullname === 'string' && 
+        typeof user.password === 'string'
+      );
+      
+      if (validUsers.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "No valid users found to import"
+        });
+        return;
+      }
+      
+      // Check for existing emails to avoid duplicates
+      const emails = validUsers.map(user => user.email);
+      const existingUsers = await User.find({ email: { $in: emails } });
+      const existingEmails = new Set(existingUsers.map(user => user.email));
+      
+      // Filter out users with existing emails
+      const newUsers = validUsers.filter(user => !existingEmails.has(user.email));
+      
+      if (newUsers.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "All users already exist in the system",
+          existingCount: existingEmails.size
+        });
+        return;
+      }
+      
+      // Create default user data structure
+      const usersToCreate = newUsers.map(user => ({
+        fullname: user.fullname,
+        email: user.email,
+        password: user.password,
+        role: "user",
+        recordCounts: {
+          totalRegular: 0,
+          totalNatural: 0,
+          dailyRegular: 0,
+          dailyNatural: 0,
+          deletedRegular: 0,
+          deletedNatural: 0,
+          lastRegularCountDate: null,
+          lastNaturalCountDate: null
+        },
+        suspended: false,
+        updatedPersonalInfo: false,
+        signedWaiver: false,
+        personalInfo: {},
+        bankDetails: {},
+        languages: [],
+        emailVerification: {
+          isVerified: true // Assuming users coming from another system are verified
+        }
+      }));
+      
+      // Insert the new users
+      const insertedUsers = await User.insertMany(usersToCreate);
+      
+      res.status(201).json({
+        success: true,
+        message: `Successfully imported ${insertedUsers.length} users`,
+        skippedCount: existingEmails.size,
+        insertedCount: insertedUsers.length,
+        data: insertedUsers.map(user => ({
+          id: user._id,
+          fullname: user.fullname,
+          email: user.email
+        }))
+      });
+      
+    } catch (error) {
+      console.error("Error importing users:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to import users",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
