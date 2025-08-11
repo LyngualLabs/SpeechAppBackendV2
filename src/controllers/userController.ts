@@ -472,14 +472,13 @@ export const importUsers = asyncHandler(
         return;
       }
       
-      // Validate the user data
+      // Validate the user data - requiring just basic fields
       const validUsers = users.filter(user => 
         user.fullname && 
         user.email && 
         user.password &&
         typeof user.email === 'string' && 
-        typeof user.fullname === 'string' && 
-        typeof user.password === 'string'
+        typeof user.fullname === 'string'
       );
       
       if (validUsers.length === 0) {
@@ -507,12 +506,12 @@ export const importUsers = asyncHandler(
         return;
       }
       
-      // Create default user data structure
+      // Create complete user data structure, preserving existing fields
       const usersToCreate = newUsers.map(user => ({
         fullname: user.fullname,
         email: user.email,
         password: user.password,
-        role: "user",
+        role: user.role || "user",
         recordCounts: {
           totalRegular: 0,
           totalNatural: 0,
@@ -523,14 +522,27 @@ export const importUsers = asyncHandler(
           lastRegularCountDate: null,
           lastNaturalCountDate: null
         },
-        suspended: false,
-        updatedPersonalInfo: false,
-        signedWaiver: false,
-        personalInfo: {},
-        bankDetails: {},
-        languages: [],
+        suspended: user.suspended || false,
+        updatedPersonalInfo: user.updatedPersonalInfo || false,
+        signedWaiver: user.signedWaiver || false,
+        personalInfo: user.personalInfo || {
+          age: null,
+          gender: null,
+          nationality: null,
+          state: null,
+          phoneNumber: null,
+          occupation: null
+        },
+        bankDetails: user.bankDetails || {
+          bankName: null,
+          accountName: null,
+          accountNumber: null
+        },
+        languages: user.languages || [],
         emailVerification: {
-          isVerified: true // Assuming users coming from another system are verified
+          isVerified: user.emailVerificationStatus || false,
+          code: null,
+          expiresAt: null
         }
       }));
       
@@ -545,7 +557,11 @@ export const importUsers = asyncHandler(
         data: insertedUsers.map(user => ({
           id: user._id,
           fullname: user.fullname,
-          email: user.email
+          email: user.email,
+          personalInfo: user.personalInfo,
+          hasCompletedProfile: user.updatedPersonalInfo,
+          signedWaiver: user.signedWaiver,
+          languages: user.languages
         }))
       });
       
