@@ -168,15 +168,15 @@ export const checkDailyNaturalCount = asyncHandler(
         await User.findByIdAndUpdate(userId, {
           $set: {
             "recordCounts.dailyNatural": 0,
-            "recordCounts.lastNaturalCountDate": today
-          }
+            "recordCounts.lastNaturalCountDate": today,
+          },
         });
 
         res.status(200).json({
           success: true,
           message: "Daily natural count reset",
-          data: { 
-            dailyNaturalCount: 0, 
+          data: {
+            dailyNaturalCount: 0,
             lastReset: today,
           },
         });

@@ -9,10 +9,12 @@ import {
   updateDetails,
   toggleAdminRole,
   exportAllUsersData,
+  importUsers,
 } from "../controllers/userController";
 import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
+router.post("/import", importUsers);
 
 router.use(protect);
 
