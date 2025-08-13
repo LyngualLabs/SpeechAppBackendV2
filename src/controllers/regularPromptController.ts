@@ -100,31 +100,54 @@ export const addBulkPrompts = asyncHandler(
 export const getPrompts = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      // Find the current user
-      const user = await User.findById(req.user?._id);
-      if (!user) {
-        res.status(404).json({ error: "User not found" });
+      const userId = req.user?._id;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
         return;
       }
 
-      // Get user's existing recordings to exclude prompts they've already recorded
-      const existingRecordings = await RegularRecording.find({ user: user._id })
-        .select("prompt")
-        .lean();
-
-      const recordedPromptIds = existingRecordings.map((rec) => rec.prompt);
-
-      // Create the base query for active prompts with remaining capacity
-      const query: mongoose.FilterQuery<typeof RegularPrompt> = {
-        active: true,
-        $expr: { $lt: ["$userCount", "$maxUsers"] },
-        _id: { $nin: recordedPromptIds },
-      };
-
-      // Find prompts that match our criteria
-      const availablePrompts = await RegularPrompt.find(query)
-        .select("text_id prompt emotions domain language_tags")
-        .lean();
+      // Single aggregation pipeline to find available prompts
+      const availablePrompts = await RegularPrompt.aggregate([
+        {
+          $match: {
+            active: true,
+            $expr: { $lt: ["$userCount", "$maxUsers"] },
+          },
+        },
+        {
+          $lookup: {
+            from: "regularrecordings",
+            let: { promptId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$prompt", "$$promptId"] },
+                      { $eq: ["$user", new mongoose.Types.ObjectId(userId)] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "userRecordings",
+          },
+        },
+        {
+          $match: {
+            "userRecordings.0": { $exists: false }, // No recordings for this user
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            prompt: 1,
+            emotions: 1,
+            domain: 1,
+            text_id: 1,
+          },
+        },
+      ]);
 
       if (!availablePrompts.length) {
         res.status(404).json({
@@ -134,7 +157,7 @@ export const getPrompts = asyncHandler(
         return;
       }
 
-      // Select a random prompt from the available ones
+      // Select random prompt
       const randomPrompt =
         availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
 
