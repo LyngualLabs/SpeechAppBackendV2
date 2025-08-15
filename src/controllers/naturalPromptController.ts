@@ -1244,3 +1244,108 @@ export const getUnverifiedPromptsByUser = asyncHandler(
     }
   }
 );
+
+export const editPrompt = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { promptId } = req.params;
+      const { prompt, maxUsers, active } = req.body;
+
+      // Validate prompt ID
+      if (!mongoose.Types.ObjectId.isValid(promptId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid prompt ID format",
+        });
+        return;
+      }
+
+      // Find the existing prompt
+      const existingPrompt = await NaturalPrompt.findById(promptId);
+      if (!existingPrompt) {
+        res.status(404).json({
+          success: false,
+          error: "Prompt not found",
+        });
+        return;
+      }
+
+      // Validate required field
+      if (!prompt) {
+        res.status(400).json({
+          success: false,
+          error: "Prompt is required",
+        });
+        return;
+      }
+
+      // Validate maxUsers if provided
+      if (maxUsers !== undefined && (maxUsers < 1 || !Number.isInteger(maxUsers))) {
+        res.status(400).json({
+          success: false,
+          error: "maxUsers must be a positive integer",
+        });
+        return;
+      }
+
+      // Check if reducing maxUsers would conflict with existing userCount
+      if (maxUsers !== undefined && maxUsers < existingPrompt.userCount) {
+        res.status(400).json({
+          success: false,
+          error: `Cannot set maxUsers to ${maxUsers}. Current userCount is ${existingPrompt.userCount}`,
+        });
+        return;
+      }
+
+      // Prepare update object (only prompt field)
+      const updateData: Partial<INaturalPrompt> = {
+        prompt: prompt.trim(),
+      };
+
+      if (maxUsers !== undefined) {
+        updateData.maxUsers = maxUsers;
+      }
+
+      if (active !== undefined) {
+        updateData.active = Boolean(active);
+      }
+
+      // Update the prompt
+      const updatedPrompt = await NaturalPrompt.findByIdAndUpdate(
+        promptId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedPrompt) {
+        res.status(500).json({
+          success: false,
+          error: "Failed to update prompt",
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Prompt updated successfully",
+        data: {
+          id: updatedPrompt._id,
+          prompt: updatedPrompt.prompt,
+          prompt_2: updatedPrompt.prompt_2, // Still return it, just don't edit
+          prompt_id: updatedPrompt.prompt_id,
+          maxUsers: updatedPrompt.maxUsers,
+          userCount: updatedPrompt.userCount,
+          active: updatedPrompt.active,
+          updatedAt: updatedPrompt.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error editing prompt:", error);
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
