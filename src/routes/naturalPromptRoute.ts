@@ -11,6 +11,7 @@ import {
   getMyUnverifiedPrompts,
   getVerifiedPromptsByUser,
   getUnverifiedPromptsByUser,
+  editPrompt,
   verifyPrompts,
   deletePrompts,
   getEnhancedNaturalPromptStats,
@@ -24,6 +25,7 @@ router.use(protect);
 
 router.get("/stats", getEnhancedNaturalPromptStats);
 router.post("/bulk", upload.single("promptsFile"), addBulkPrompts);
+router.put("/edit/:promptId", editPrompt);
 router.get("/check-daily-count", checkDailyNaturalCount);
 router.get("/get-prompt", getPrompts);
 router.get("/my-recordings", getUserPrompts);
