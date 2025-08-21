@@ -55,6 +55,13 @@ const UserSchema = new Schema<IUser>(
       accountName: { type: String },
       accountNumber: { type: String },
     },
+    paymentTracking: {
+      lastPaymentDate: { type: Date, default: null },
+      totalPaidPrompts: { type: Number, default: 0 },
+      totalAmountPaid: { type: Number, default: 0 },
+      naturalPromptsPaid: { type: Number, default: 0 },
+      regularPromptsPaid: { type: Number, default: 0 },
+    },
     languages: [String],
     emailVerification: {
       code: String,

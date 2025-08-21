@@ -50,6 +50,13 @@ export const getMyDetails = asyncHandler(
           emailVerified: user.emailVerification?.isVerified || false,
           personalInfo: user.personalInfo,
           bankDetails: user.bankDetails,
+          paymentTracking: user.paymentTracking || {
+            lastPaymentDate: null,
+            totalPaidPrompts: 0,
+            totalAmountPaid: 0,
+            naturalPromptsPaid: 0,
+            regularPromptsPaid: 0,
+          },
           languages: user.languages,
           recordCounts: user.recordCounts,
         },
@@ -166,6 +173,13 @@ export const getUserById = asyncHandler(
           suspended: user.suspended,
           personalInfo: user.personalInfo,
           bankDetails: user.bankDetails,
+          paymentTracking: user.paymentTracking || {
+            lastPaymentDate: null,
+            totalPaidPrompts: 0,
+            totalAmountPaid: 0,
+            naturalPromptsPaid: 0,
+            regularPromptsPaid: 0,
+          },
           languages: user.languages,
           recordingStats: {
             totalRecordings:
@@ -175,7 +189,7 @@ export const getUserById = asyncHandler(
               user.recordCounts?.deletedNatural,
             currentRecordings: regularRecordingsCount + naturalRecordingsCount,
             totalVerified: verifiedRegularCount + verifiedNaturalCount,
-          },
+          }
         },
       });
     } catch (err) {
@@ -463,51 +477,54 @@ export const importUsers = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { users } = req.body;
-      
+
       if (!Array.isArray(users) || users.length === 0) {
         res.status(400).json({
           success: false,
-          message: "Please provide an array of users to import"
+          message: "Please provide an array of users to import",
         });
         return;
       }
-      
+
       // Validate the user data - requiring just basic fields
-      const validUsers = users.filter(user => 
-        user.fullname && 
-        user.email && 
-        user.password &&
-        typeof user.email === 'string' && 
-        typeof user.fullname === 'string'
+      const validUsers = users.filter(
+        (user) =>
+          user.fullname &&
+          user.email &&
+          user.password &&
+          typeof user.email === "string" &&
+          typeof user.fullname === "string"
       );
-      
+
       if (validUsers.length === 0) {
         res.status(400).json({
           success: false,
-          message: "No valid users found to import"
+          message: "No valid users found to import",
         });
         return;
       }
-      
+
       // Check for existing emails to avoid duplicates
-      const emails = validUsers.map(user => user.email);
+      const emails = validUsers.map((user) => user.email);
       const existingUsers = await User.find({ email: { $in: emails } });
-      const existingEmails = new Set(existingUsers.map(user => user.email));
-      
+      const existingEmails = new Set(existingUsers.map((user) => user.email));
+
       // Filter out users with existing emails
-      const newUsers = validUsers.filter(user => !existingEmails.has(user.email));
-      
+      const newUsers = validUsers.filter(
+        (user) => !existingEmails.has(user.email)
+      );
+
       if (newUsers.length === 0) {
         res.status(400).json({
           success: false,
           message: "All users already exist in the system",
-          existingCount: existingEmails.size
+          existingCount: existingEmails.size,
         });
         return;
       }
-      
+
       // Create complete user data structure, preserving existing fields
-      const usersToCreate = newUsers.map(user => ({
+      const usersToCreate = newUsers.map((user) => ({
         fullname: user.fullname,
         email: user.email,
         password: user.password,
@@ -520,7 +537,7 @@ export const importUsers = asyncHandler(
           deletedRegular: 0,
           deletedNatural: 0,
           lastRegularCountDate: null,
-          lastNaturalCountDate: null
+          lastNaturalCountDate: null,
         },
         suspended: user.suspended || false,
         updatedPersonalInfo: user.updatedPersonalInfo || false,
@@ -531,46 +548,210 @@ export const importUsers = asyncHandler(
           nationality: null,
           state: null,
           phoneNumber: null,
-          occupation: null
+          occupation: null,
         },
         bankDetails: user.bankDetails || {
           bankName: null,
           accountName: null,
-          accountNumber: null
+          accountNumber: null,
         },
         languages: user.languages || [],
         emailVerification: {
           isVerified: user.emailVerificationStatus || false,
           code: null,
-          expiresAt: null
-        }
+          expiresAt: null,
+        },
       }));
-      
+
       // Insert the new users
       const insertedUsers = await User.insertMany(usersToCreate);
-      
+
       res.status(201).json({
         success: true,
         message: `Successfully imported ${insertedUsers.length} users`,
         skippedCount: existingEmails.size,
         insertedCount: insertedUsers.length,
-        data: insertedUsers.map(user => ({
+        data: insertedUsers.map((user) => ({
           id: user._id,
           fullname: user.fullname,
           email: user.email,
           personalInfo: user.personalInfo,
           hasCompletedProfile: user.updatedPersonalInfo,
           signedWaiver: user.signedWaiver,
-          languages: user.languages
-        }))
+          languages: user.languages,
+        })),
       });
-      
     } catch (error) {
       console.error("Error importing users:", error);
       res.status(500).json({
         success: false,
         message: "Failed to import users",
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Update user's payment tracking (admin only)
+export const updateUserPayment = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const { amount, promptCount } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ message: "User ID is required" });
+        return;
+      }
+
+      if (!amount || !promptCount) {
+        res.status(400).json({
+          message: "Amount and prompt count are required",
+        });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      // Initialize payment tracking if it doesn't exist
+      if (!user.paymentTracking) {
+        user.paymentTracking = {
+          lastPaymentDate: null,
+          totalPaidPrompts: 0,
+          totalAmountPaid: 0,
+          naturalPromptsPaid: 0,
+          regularPromptsPaid: 0,
+        };
+      }
+
+      // Update payment tracking
+      user.paymentTracking.lastPaymentDate = new Date();
+      user.paymentTracking.totalPaidPrompts += promptCount;
+      user.paymentTracking.totalAmountPaid += amount;
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "User payment updated successfully",
+        data: {
+          userId: user._id,
+          fullname: user.fullname,
+          paymentTracking: user.paymentTracking,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating user payment:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update user payment",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Get payment statistics for all users (admin only)
+export const getPaymentStats = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const stats = await User.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$paymentTracking.totalAmountPaid" },
+            totalPaidPrompts: { $sum: "$paymentTracking.totalPaidPrompts" },
+            totalNaturalPromptsPaid: {
+              $sum: "$paymentTracking.naturalPromptsPaid",
+            },
+            totalRegularPromptsPaid: {
+              $sum: "$paymentTracking.regularPromptsPaid",
+            },
+            totalPayingUsers: {
+              $sum: {
+                $cond: [{ $gt: ["$paymentTracking.totalAmountPaid", 0] }, 1, 0],
+              },
+            },
+          },
+        },
+      ]);
+
+      const result = stats[0] || {
+        totalRevenue: 0,
+        totalPaidPrompts: 0,
+        totalNaturalPromptsPaid: 0,
+        totalRegularPromptsPaid: 0,
+        totalPayingUsers: 0,
+      };
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error("Error getting payment stats:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get payment statistics",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Get payment details of a particular user (admin only)
+export const getUserPaymentDetails = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        res.status(400).json({ message: "User ID is required" });
+        return;
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid user ID format",
+        });
+        return;
+      }
+
+      const user = await User.findById(userId).select(
+        "fullname email paymentTracking"
+      );
+
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          userId: user._id,
+          fullname: user.fullname,
+          email: user.email,
+          paymentTracking: user.paymentTracking || {
+            lastPaymentDate: null,
+            totalPaidPrompts: 0,
+            totalAmountPaid: 0,
+            naturalPromptsPaid: 0,
+            regularPromptsPaid: 0,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error getting user payment details:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get user payment details",
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }

@@ -21,6 +21,15 @@ export interface IBankDetails {
   accountName: string;
 }
 
+// Define payment tracking interface
+export interface IPaymentTracking {
+  lastPaymentDate: Date | null;
+  totalPaidPrompts: number;
+  totalAmountPaid: number;
+  naturalPromptsPaid: number;
+  regularPromptsPaid: number;
+}
+
 interface IPasswordReset {
   code: string | null;
   expiresAt: Date | null;
@@ -59,6 +68,7 @@ export interface IUser extends Document {
   signedWaiver: boolean;
   personalInfo: IPersonalInfo;
   bankDetails: IBankDetails;
+  paymentTracking: IPaymentTracking;
   languages: string[];
   emailVerification: IEmailVerification;
   passwordReset: IPasswordReset;
